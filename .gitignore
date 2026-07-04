@@ -1,0 +1,12 @@
+# Google Apps Script
+apps-script/
+
+# VS Code settings
+.vscode/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+desktop.ini
