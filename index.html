@@ -273,13 +273,13 @@
             required
           />
 
-          <input
-            type="text"
-            name="state"
-            placeholder="State"
-            autocomplete="address-level1"
-            required
-          />
+          <select name="state" autocomplete="address-level1" required>
+            <option value="NE" selected>Nebraska</option>
+            <option value="WY">Wyoming</option>
+            <option value="CO">Colorado</option>
+            <option value="SD">South Dakota</option>
+            <option value="OTHER">Other</option>
+          </select>
 
           <select name="service" required>
             <option value="">Service Needed</option>
