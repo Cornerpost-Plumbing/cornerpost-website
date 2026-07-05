@@ -9,4 +9,11 @@ Thumbs.db
 desktop.ini
 
 # macOS
+.DS_Store# Affinity Designer
+*.af~lock~
+
+# Windows
+Thumbs.db
+
+# macOS
 .DS_Store
