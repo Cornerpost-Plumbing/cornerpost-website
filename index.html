@@ -4,15 +4,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <link rel="icon" href="/favicon.ico" sizes="any">
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png">
-  <link rel="apple-touch-icon" href="/favicon/apple-touch-icon.png">
-  <link rel="manifest" href="/site.webmanifest">
-  <meta name="theme-color" content="#23201b">
+  <link rel="icon" href="/favicon/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+  <link rel="apple-touch-icon" href="/favicon/apple-touch-icon.png" />
+  <link rel="manifest" href="/site.webmanifest" />
+  <meta name="theme-color" content="#23201b" />
 
-  <title>Cornerpost Plumbing | Plumbing, Gasfitting & Septic | Scottsbluff, NE</title>
+  <title>Cornerpost Plumbing | Plumbing Service in Scottsbluff & Western Nebraska</title>
 
   <meta
     name="description"
@@ -30,7 +30,18 @@
         <img src="images/cornerpost-logo.svg" alt="Cornerpost Plumbing logo" class="brand-logo" />
       </a>
 
-      <nav class="site-nav" aria-label="Main navigation">
+      <button
+        class="menu-toggle"
+        type="button"
+        aria-controls="main-navigation"
+        aria-expanded="false"
+        aria-label="Open menu"
+      >
+        <span class="menu-toggle-bars" aria-hidden="true"></span>
+        <span>Menu</span>
+      </button>
+
+      <nav class="site-nav" id="main-navigation" aria-label="Main navigation">
         <div class="nav-item has-dropdown">
           <a href="services.html" class="nav-link">Services</a>
 

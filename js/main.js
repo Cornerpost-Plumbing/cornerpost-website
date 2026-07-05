@@ -1,4 +1,31 @@
 document.addEventListener("DOMContentLoaded", () => {
+  initMobileNavigation();
+  initServiceRequestForm();
+});
+
+function initMobileNavigation() {
+  const menuToggle = document.querySelector(".menu-toggle");
+  const siteNav = document.querySelector(".site-nav");
+
+  if (!menuToggle || !siteNav) return;
+
+  menuToggle.addEventListener("click", () => {
+    const isOpen = siteNav.classList.toggle("is-open");
+    menuToggle.setAttribute("aria-expanded", String(isOpen));
+    menuToggle.setAttribute("aria-label", isOpen ? "Close menu" : "Open menu");
+  });
+
+  siteNav.addEventListener("click", (event) => {
+    const link = event.target.closest("a");
+    if (!link) return;
+
+    siteNav.classList.remove("is-open");
+    menuToggle.setAttribute("aria-expanded", "false");
+    menuToggle.setAttribute("aria-label", "Open menu");
+  });
+}
+
+function initServiceRequestForm() {
   const form = document.getElementById("request-service-form");
   if (!form) return;
 
@@ -22,8 +49,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     setStatus(status, "Sending your request...", "neutral");
-    submitButton.disabled = true;
-    submitButton.textContent = "Sending...";
+
+    if (submitButton) {
+      submitButton.disabled = true;
+      submitButton.textContent = "Sending...";
+    }
 
     const formData = new FormData(form);
     const controller = new AbortController();
@@ -56,11 +86,14 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     } finally {
       clearTimeout(timeout);
-      submitButton.disabled = false;
-      submitButton.textContent = "Request Service";
+
+      if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.textContent = "Request Service";
+      }
     }
   });
-});
+}
 
 function formatPhoneNumber(value) {
   const digits = value.replace(/\D/g, "").slice(0, 10);
