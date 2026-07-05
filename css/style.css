@@ -599,52 +599,61 @@ button:disabled {
 }
 
 @media (max-width: 640px) {
-  .container {
-    width: min(100% - 2rem, var(--container));
+  .brand-logo {
+    width: 230px;
+    max-width: 88vw;
   }
 
-  .hero-content {
-    left: 1rem;
-    top: 46%;
-    width: calc(100% - 2rem);
+  .header-inner {
+    min-height: 82px;
+    justify-content: center;
+  }
+
+  .hero {
+    min-height: 680px;
+  }
+
+  .hero-image {
+    height: 680px;
+    object-fit: cover;
+    object-position: 72% center;
   }
 
   .hero-overlay {
-    background: rgba(246, 243, 236, 0.78);
+    background: linear-gradient(
+      180deg,
+      rgba(246, 243, 236, 0.92) 0%,
+      rgba(246, 243, 236, 0.78) 42%,
+      rgba(246, 243, 236, 0.62) 100%
+    );
   }
 
-  h1 {
-    font-size: clamp(2.2rem, 10.5vw, 3.2rem);
+  .hero-content {
+    left: 1.35rem;
+    right: 1.35rem;
+    top: auto;
+    bottom: 2.25rem;
+    width: auto;
+    max-width: none;
+    transform: none;
   }
 
-  h2 {
-    font-size: clamp(1.75rem, 8.5vw, 2.35rem);
+  .hero-content .eyebrow {
+    margin-bottom: 0.7rem;
+    font-size: 0.62rem;
+    line-height: 1.35;
+    letter-spacing: 0.11em;
   }
 
-  .proof-grid,
-  .service-grid,
-  .work-grid,
-  .owner-layout,
-  .contact-layout,
-  .service-form {
-    grid-template-columns: 1fr;
+  .hero-content h1 {
+    max-width: 100%;
+    margin-bottom: 1.8rem;
+    font-size: clamp(2.45rem, 11.5vw, 3.35rem);
+    line-height: 1;
+    white-space: normal;
   }
 
-  .proof-grid div {
-    border-right: 0;
-    border-bottom: 1px solid var(--color-border);
-    padding: 1rem 0;
-  }
-
-  .proof-grid div:last-child {
-    border-bottom: 0;
-  }
-
-  .button {
-    width: 100%;
-  }
-
-  .footer-inner {
-    flex-direction: column;
+  .button-row {
+    margin-top: 2rem;
   }
 }
