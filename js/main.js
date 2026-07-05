@@ -60,19 +60,14 @@ function initServiceRequestForm() {
     const timeout = setTimeout(() => controller.abort(), 15000);
 
     try {
-      const response = await fetch(scriptURL, {
-        method: "POST",
-        body: formData,
-        signal: controller.signal
-      });
+      await fetch(scriptURL, {
+          method: "POST",
+          body: formData,
+          mode: "no-cors",
+          signal: controller.signal
+        });
 
-      clearTimeout(timeout);
-
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || "Unknown form submission error");
-      }
+clearTimeout(timeout);
 
       setStatus(status, "Thank you. Your request has been sent.", "success");
       form.reset();
