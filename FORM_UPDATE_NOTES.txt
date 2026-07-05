@@ -1,0 +1,19 @@
+Cornerpost service form v2 update
+
+Files included:
+- index.html
+- css/style.css
+- js/main.js
+- apps-script/Code.gs
+
+Important:
+- Paste apps-script/Code.gs into Google Apps Script.
+- Save and deploy a NEW VERSION of the existing Web App.
+- Keep access set to Anyone.
+- Sheet headers should be:
+  Reference Number | Timestamp | Name | Phone | Email | Street Address | City | State | Service | Preferred Time | Message | Photo Links | Status
+
+Note on reference numbers:
+- Apps Script generates the true reference/job number and stores it in the sheet/email.
+- Because Google Apps Script does not reliably allow readable cross-origin POST responses from a static website, the customer success message does not display the generated reference number.
+- The customer sees a polished confirmation card and your urgent phone number.

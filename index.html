@@ -253,6 +253,15 @@
           id="request-service-form"
           data-script-url="https://script.google.com/macros/s/AKfycbyqad7gE_rPS4aFSq_2F4UebzomAEVAf9K14dFcW98tKRZJfYM0DV1vcOAz27m2woFXxw/exec"
         >
+          <input
+            type="text"
+            name="companyWebsite"
+            class="website-field"
+            tabindex="-1"
+            autocomplete="off"
+            aria-hidden="true"
+          />
+
           <input type="text" name="name" placeholder="Name" autocomplete="name" required />
           <input type="tel" name="phone" placeholder="Phone" autocomplete="tel" required />
           <input type="email" name="email" placeholder="Email" autocomplete="email" />
@@ -278,35 +287,41 @@
             <option value="WY">Wyoming</option>
             <option value="CO">Colorado</option>
             <option value="SD">South Dakota</option>
-            <option value="OTHER">Other</option>
+            <option value="Other">Other</option>
           </select>
 
           <select name="service" required>
             <option value="">Service Needed</option>
-            <option>General Plumbing</option>
-            <option>Drain Cleaning</option>
-            <option>Sewer Camera Inspection</option>
-            <option>Water Heater Service</option>
-            <option>Gas Piping</option>
-            <option>Remodel Plumbing</option>
-            <option>Leak Detection &amp; Repair</option>
-            <option>Emergency Service</option>
-            <option>Septic Installation</option>
-            <option>Other</option>
+            <option value="General Plumbing Repair">General Plumbing Repair</option>
+            <option value="Drain Cleaning">Drain Cleaning</option>
+            <option value="Sewer Camera Inspection">Sewer Camera Inspection</option>
+            <option value="Water Heater Service">Water Heater Service</option>
+            <option value="Gas Piping">Gas Piping</option>
+            <option value="Remodel Plumbing">Remodel Plumbing</option>
+            <option value="Leak Detection & Repair">Leak Detection &amp; Repair</option>
+            <option value="Emergency Service">Emergency Service</option>
+            <option value="Septic Installation">Septic Installation</option>
+            <option value="Other">Other</option>
           </select>
+
+          <select name="preferredTime">
+            <option value="">Preferred Appointment Time</option>
+            <option value="Morning (8-12)">Morning (8-12)</option>
+            <option value="Afternoon (12-5)">Afternoon (12-5)</option>
+            <option value="Evening (5-7)">Evening (5-7)</option>
+            <option value="First Available">First Available</option>
+          </select>
+
+          <label class="file-upload">
+            <span>Upload Photos <small>(optional, up to 3 photos)</small></span>
+            <input type="file" name="photoFiles" accept="image/*" multiple />
+          </label>
+          <p class="file-help" id="file-help">Photos help us understand the issue before we arrive. Maximum 5 MB per photo.</p>
+          <ul class="file-list" id="file-list" aria-live="polite"></ul>
 
           <textarea name="message" rows="5" placeholder="Project Details" required></textarea>
 
-          <input
-            type="text"
-            name="companyWebsite"
-            class="website-field"
-            tabindex="-1"
-            autocomplete="off"
-            aria-hidden="true"
-          />
-
-          <p class="form-status" id="form-status" aria-live="polite"></p>
+          <div class="form-status" id="form-status" aria-live="polite"></div>
 
           <button type="submit" class="button button-primary">Request Service</button>
         </form>

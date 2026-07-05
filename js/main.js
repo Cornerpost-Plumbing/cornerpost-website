@@ -33,10 +33,18 @@ function initServiceRequestForm() {
   const scriptURL = form.dataset.scriptUrl;
   const submitButton = form.querySelector("button[type='submit']");
   const phoneInput = form.querySelector("input[name='phone']");
+  const fileInput = form.querySelector("input[name='photoFiles']");
+  const fileList = document.getElementById("file-list");
 
   if (phoneInput) {
     phoneInput.addEventListener("input", () => {
       phoneInput.value = formatPhoneNumber(phoneInput.value);
+    });
+  }
+
+  if (fileInput && fileList) {
+    fileInput.addEventListener("change", () => {
+      renderSelectedFiles(fileInput.files, fileList);
     });
   }
 
@@ -48,46 +56,100 @@ function initServiceRequestForm() {
       return;
     }
 
-    setStatus(status, "Sending your request...", "neutral");
+    setStatus(status, "Preparing your request...", "neutral");
 
     if (submitButton) {
       submitButton.disabled = true;
       submitButton.textContent = "Sending...";
     }
 
-    const formData = new FormData(form);
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
-
     try {
+      const formData = new FormData(form);
+
+      if (fileInput && fileInput.files.length > 0) {
+        const photos = await filesToBase64(fileInput.files);
+        formData.set("photos", JSON.stringify(photos));
+      }
+
+      setStatus(status, "Sending your request...", "neutral");
+
       await fetch(scriptURL, {
-          method: "POST",
-          body: formData,
-          mode: "no-cors",
-          signal: controller.signal
-        });
+        method: "POST",
+        body: formData,
+        mode: "no-cors"
+      });
 
-clearTimeout(timeout);
-
-      setStatus(status, "Thank you. Your request has been sent.", "success");
+      showSuccess(status);
       form.reset();
+
+      if (fileList) {
+        fileList.innerHTML = "";
+      }
     } catch (error) {
       console.error("Cornerpost form error:", error);
-
-      if (error.name === "AbortError") {
-        setStatus(status, "The request timed out. Please call 308-225-3392.", "error");
-      } else {
-        setStatus(status, "Something went wrong. Please call 308-225-3392.", "error");
-      }
+      setStatus(status, error.message || "Something went wrong. Please call 308-225-3392.", "error");
     } finally {
-      clearTimeout(timeout);
-
       if (submitButton) {
         submitButton.disabled = false;
         submitButton.textContent = "Request Service";
       }
     }
   });
+}
+
+function renderSelectedFiles(files, fileList) {
+  fileList.innerHTML = "";
+
+  const selectedFiles = Array.from(files);
+  if (selectedFiles.length === 0) return;
+
+  selectedFiles.slice(0, 3).forEach((file) => {
+    const item = document.createElement("li");
+    item.textContent = `${file.name} (${formatFileSize(file.size)})`;
+    fileList.appendChild(item);
+  });
+
+  if (selectedFiles.length > 3) {
+    const item = document.createElement("li");
+    item.textContent = "Only the first 3 photos will be uploaded.";
+    fileList.appendChild(item);
+  }
+}
+
+function filesToBase64(files) {
+  const maxFiles = 3;
+  const maxSize = 5 * 1024 * 1024;
+  const selectedFiles = Array.from(files).slice(0, maxFiles);
+
+  return Promise.all(
+    selectedFiles.map((file) => {
+      if (file.size > maxSize) {
+        throw new Error(`${file.name} is too large. Maximum file size is 5 MB.`);
+      }
+
+      if (!file.type.startsWith("image/")) {
+        throw new Error(`${file.name} is not an image file.`);
+      }
+
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+
+        reader.onload = () => {
+          const result = String(reader.result);
+          const base64Data = result.split(",")[1];
+
+          resolve({
+            name: file.name,
+            mimeType: file.type,
+            data: base64Data
+          });
+        };
+
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(file);
+      });
+    })
+  );
 }
 
 function formatPhoneNumber(value) {
@@ -99,16 +161,30 @@ function formatPhoneNumber(value) {
   return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
 }
 
+function formatFileSize(bytes) {
+  if (bytes < 1024 * 1024) {
+    return `${Math.round(bytes / 1024)} KB`;
+  }
+
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 function setStatus(element, message, type) {
   if (!element) return;
 
+  element.className = `form-status form-status-${type}`;
   element.textContent = message;
+}
 
-  if (type === "success") {
-    element.style.color = "#2c312b";
-  } else if (type === "error") {
-    element.style.color = "#b03030";
-  } else {
-    element.style.color = "#66685f";
-  }
+function showSuccess(element) {
+  if (!element) return;
+
+  element.className = "form-status form-status-card";
+  element.innerHTML = `
+    <h3>✓ Request Sent!</h3>
+    <p>Thank you for contacting <strong>Cornerpost Plumbing</strong>.</p>
+    <p>We've received your request and will contact you as soon as possible.</p>
+    <p><strong>If your plumbing issue is urgent, please call immediately:</strong></p>
+    <p><strong><a href="tel:3082253392">308-225-3392</a></strong></p>
+  `;
 }
