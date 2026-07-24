@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <link rel="icon" href="/favicon/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/svg+xml" href="/favicon/favicon.svg" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+  <link rel="apple-touch-icon" href="/favicon/apple-touch-icon.png" />
+  <link rel="manifest" href="/site.webmanifest" />
+  <meta name="theme-color" content="#23201b" />
+
+  <title>Customer Reviews</title>
+  <meta name="description" content="Read recent customer reviews for Cornerpost Plumbing and learn how honest feedback helps us improve and stay accountable." />
+
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="js/config.js" defer></script>
+  <script src="js/services.js" defer></script>
+  <script src="js/reviews.js" defer></script>
+  <script src="js/navigation.js" defer></script>
+  <script src="js/main.js" defer></script>
+</head>
+
+<body data-page="reviews">
+  <header id="site-header" class="site-header"></header>
+
+  <main id="top">
+    <section class="page-hero reviews-page-hero">
+      <div class="container page-hero-inner">
+        <p class="eyebrow">Customer Reviews</p>
+        <h1>Honest feedback helps us improve.</h1>
+        <p data-reviews-page-intro></p>
+      </div>
+    </section>
+
+    <section class="section reviews-page-section">
+      <div class="container">
+        <div class="reviews-page-summary">
+          <div>
+            <p class="eyebrow">What Customers Are Saying</p>
+            <h2>A public record of the experience we provide.</h2>
+          </div>
+          <p data-reviews-feedback-message></p>
+        </div>
+
+        <div class="reviews-page-list" data-reviews-page></div>
+      </div>
+    </section>
+
+    <section class="section section-dark reviews-feedback-section">
+      <div class="container reviews-feedback-layout">
+        <div>
+          <p class="eyebrow">Share Your Experience</p>
+          <h2>Your feedback helps the next homeowner make an informed decision.</h2>
+        </div>
+        <div>
+          <p>
+            We welcome honest feedback. It helps us recognize what we are doing well, understand where we can improve, and remain accountable to the communities we serve.
+          </p>
+          <a href="#" class="button button-secondary" data-leave-review-link>Leave a Google Review</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer id="site-footer" class="site-footer"></footer>
+</body>
+</html>

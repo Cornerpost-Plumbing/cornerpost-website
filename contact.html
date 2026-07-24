@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <link rel="icon" href="/favicon/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/svg+xml" href="/favicon/favicon.svg" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+  <link rel="apple-touch-icon" href="/favicon/apple-touch-icon.png" />
+  <link rel="manifest" href="/site.webmanifest" />
+  <meta name="theme-color" content="#23201b" />
+
+  <title>Contact Cornerpost Plumbing</title>
+
+  <meta
+    name="description"
+    content="Contact Cornerpost Plumbing to request residential plumbing service, urgent plumbing help, or service information in western Nebraska."
+  />
+
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="js/config.js" defer></script>
+  <script src="js/services.js" defer></script>
+  <script src="js/reviews.js" defer></script>
+  <script src="js/navigation.js" defer></script>
+  <script src="js/main.js" defer></script>
+</head>
+
+<body data-page="contact">
+  <header id="site-header" class="site-header"></header>
+
+  <main id="top">
+    <section class="page-hero contact-page-hero">
+      <div class="container page-hero-inner">
+        <p class="eyebrow">Contact</p>
+        <h1>Tell us what is going on, and we will help you find the right next step.</h1>
+        <p>
+          Use the request form for standard service needs. For urgent plumbing issues,
+          call directly so the problem can be addressed as quickly as possible.
+        </p>
+        <div class="button-row">
+          <a href="#request-service" class="button button-primary">Request Service</a>
+          <a href="#" data-phone-link class="button button-secondary"><span data-phone-cta></span></a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section contact-info-section section-light">
+      <div class="container">
+        <div class="contact-card-grid">
+          <article class="contact-info-card urgent-card">
+            <p class="eyebrow">Urgent Issues</p>
+            <h2>Call for urgent plumbing problems.</h2>
+            <p><span data-urgent-instruction></span></p>
+            <p class="contact-card-link"><a href="#" data-phone-link><span data-phone-display></span></a></p>
+          </article>
+
+          <article class="contact-info-card">
+            <h3>Phone</h3>
+            <p>Call for urgent service or questions about a request.</p>
+            <p class="contact-card-link"><a href="#" data-phone-link><span data-phone-display></span></a></p>
+          </article>
+
+          <article class="contact-info-card">
+            <h3>Email</h3>
+            <p>Send non-urgent questions, follow-up details, or request information.</p>
+            <p class="contact-card-link"><a href="#" data-email-link><span data-email-display></span></a></p>
+          </article>
+
+          <article class="contact-info-card">
+            <h3>Service Area</h3>
+            <p><span data-service-area-summary></span></p>
+            <p class="muted-small">Service availability may depend on schedule, distance, and the nature of the work.</p>
+          </article>
+
+          <article class="contact-info-card">
+            <h3>Hours</h3>
+            <p><strong>Service Calls:</strong> <span data-hours-service-calls></span></p>
+            <p><strong>Office:</strong> <span data-hours-office></span></p>
+            <p><strong>Emergency:</strong> <span data-hours-emergency></span></p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="request-service" class="section contact-section">
+      <div class="container contact-layout">
+        <div>
+          <p class="eyebrow">Request Service</p>
+          <h2>Send the details before we arrive.</h2>
+          <p>
+            Describe the problem, include the service address, and upload photos if they help show what is happening.
+            You will receive a confirmation email with a reference number after the request is submitted.
+          </p>
+
+          <div class="contact-methods">
+            <p>
+              <strong>Phone</strong>
+              <a href="#" data-phone-link><span data-phone-display></span></a>
+            </p>
+
+            <p>
+              <strong>Email</strong>
+              <a href="#" data-email-link><span data-email-display></span></a>
+            </p>
+          </div>
+        </div>
+
+        <form
+          action="#"
+          method="post"
+          class="service-form"
+          id="request-service-form"
+        >
+          <input
+            type="text"
+            name="companyWebsite"
+            class="website-field"
+            tabindex="-1"
+            autocomplete="off"
+            aria-hidden="true"
+          />
+
+          <input type="text" name="name" placeholder="Name" autocomplete="name" required />
+          <input type="tel" name="phone" placeholder="Phone" autocomplete="tel" required />
+          <input type="email" name="email" placeholder="Email" autocomplete="email" />
+
+          <input
+            type="text"
+            name="streetAddress"
+            placeholder="Street Address"
+            autocomplete="street-address"
+            required
+          />
+
+          <input
+            type="text"
+            name="city"
+            placeholder="City"
+            autocomplete="address-level2"
+            required
+          />
+
+          <select name="state" autocomplete="address-level1" required>
+            <option value="NE" selected>Nebraska</option>
+            <option value="WY">Wyoming</option>
+            <option value="CO">Colorado</option>
+            <option value="SD">South Dakota</option>
+            <option value="Other">Other</option>
+          </select>
+
+          <select name="service" required data-services-select>
+            <option value="">Service Needed</option>
+            <option value="Other">Other</option>
+          </select>
+
+          <select name="preferredTime">
+            <option value="">Preferred Appointment Time</option>
+            <option value="Morning (8-12)">Morning (8-12)</option>
+            <option value="Afternoon (12-5)">Afternoon (12-5)</option>
+            <option value="Evening (5-7)">Evening (5-7)</option>
+            <option value="First Available">First Available</option>
+          </select>
+
+          <label class="file-upload">
+            <span>Upload Photos <small>(optional, up to 3 photos)</small></span>
+            <input type="file" name="photoFiles" accept="image/*" multiple />
+          </label>
+          <p class="file-help" id="file-help">Photos help us understand the issue before we arrive. Maximum 5 MB per photo.</p>
+          <ul class="file-list" id="file-list" aria-live="polite"></ul>
+
+          <textarea name="message" rows="5" placeholder="Project Details" required></textarea>
+
+          <div class="form-status" id="form-status" aria-live="polite"></div>
+
+          <button type="submit" class="button button-primary">Request Service</button>
+        </form>
+      </div>
+    </section>
+
+    <section class="section section-dark process-section">
+      <div class="container">
+        <div class="section-header">
+          <p class="eyebrow">What Happens Next</p>
+          <h2>Clear communication before work begins.</h2>
+        </div>
+
+        <div class="process-grid">
+          <article>
+            <span>1</span>
+            <h3>Your request is reviewed.</h3>
+            <p>The details and photos are used to understand the problem before scheduling or recommending the next step.</p>
+          </article>
+
+          <article>
+            <span>2</span>
+            <h3>You receive a reference number.</h3>
+            <p>The confirmation email gives you a reference number for future communication about the request.</p>
+          </article>
+
+          <article>
+            <span>3</span>
+            <h3>The work is discussed clearly.</h3>
+            <p>Recommendations are based on diagnosis, practical repair options, and respect for your home and investment.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer id="site-footer" class="site-footer"></footer>
+</body>
+</html>

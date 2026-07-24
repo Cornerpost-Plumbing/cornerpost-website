@@ -1,0 +1,35 @@
+# Affinity
+*.afdesign
+*.afphoto
+*.afpub
+
+# Adobe
+*.psd
+*.ai
+*.xd
+
+# Office
+*.pptx
+*.ppt
+*.xlsx
+*.xls
+*.docx
+*.doc
+
+# Archives
+*.zip
+*.7z
+*.rar
+
+# Temporary files
+*.tmp
+*.bak
+*.log
+
+# Operating System
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# VS Code Workspace (optional)
+*.code-workspace
