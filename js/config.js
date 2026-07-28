@@ -37,7 +37,7 @@ window.Cornerpost = {
   },
 
   forms: {
-    scriptURL: "https://script.google.com/macros/s/AKfycbzIW9REn7AUdi4UbsVQta6-2hGuy8B1mx39L42K9su5u6GnZC88B9iNOc4QVfp8eefceQ/exec",
+    scriptURL: "https://script.google.com/macros/s/AKfycbxVVPzmcyHn5s5YUVz8sq19r4bWIMa5AOSa8i-vNhntIVG0eweNSImFNT0urMTBt3PE/exec",
     requestButtonText: "Request Service",
     sendingButtonText: "Sending...",
     notConfiguredMessage: "The form is not configured yet.",
