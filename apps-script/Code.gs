@@ -10,10 +10,47 @@ const SERVICE_EMAIL = 'Service@CornerpostPlumbing.com';
 const DATABASE_ID_PROPERTY = 'SERVICE_SYSTEM_SPREADSHEET_ID';
 const PHOTO_FOLDER_ID_PROPERTY = 'WEBSITE_REQUEST_PHOTO_FOLDER_ID';
 const UPDATED_BY = 'Cornerpost Website';
+const WEBSITE_INTAKE_BUILD = '2026-07-28.1';
+
+
+function doGet() {
+  try {
+    const spreadsheet = getServiceSystemSpreadsheet_();
+    const requiredSheets = [
+      'Customers',
+      'ServiceLocations',
+      'CustomerLocationRelationships',
+      'ServiceRequests'
+    ];
+
+    return jsonResponse_({
+      success: true,
+      build: WEBSITE_INTAKE_BUILD,
+      scriptId: ScriptApp.getScriptId(),
+      spreadsheetId: spreadsheet.getId(),
+      spreadsheetName: spreadsheet.getName(),
+      requiredSheets: requiredSheets.map(function (name) {
+        return {
+          name: name,
+          found: Boolean(spreadsheet.getSheetByName(name))
+        };
+      })
+    });
+  } catch (error) {
+    return jsonResponse_({
+      success: false,
+      build: WEBSITE_INTAKE_BUILD,
+      scriptId: ScriptApp.getScriptId(),
+      error: error && error.message ? error.message : String(error)
+    });
+  }
+}
 
 function doPost(e) {
   try {
+    console.log('[Website Intake ' + WEBSITE_INTAKE_BUILD + '] doPost started');
     const data = (e && e.parameter) || {};
+    console.log('[Website Intake] submitted fields: ' + Object.keys(data).sort().join(', '));
 
     // Honeypot spam check. Pretend success without creating records.
     if (clean_(data.companyWebsite)) {
@@ -47,6 +84,7 @@ function createWebsiteServiceRequest_(input) {
 
   try {
     const spreadsheet = getServiceSystemSpreadsheet_();
+    console.log('[Website Intake] database: ' + spreadsheet.getName() + ' (' + spreadsheet.getId() + ')');
     const now = new Date();
 
     const customer = findOrCreateWebsiteCustomer_(spreadsheet, input, now);
@@ -135,7 +173,9 @@ function findOrCreateWebsiteCustomer_(spreadsheet, input, now) {
   setIfPresent_(row, table.column, 'CreatedAt', now);
   setIfPresent_(row, table.column, 'UpdatedAt', now);
   setIfPresent_(row, table.column, 'UpdatedBy', UPDATED_BY);
+  console.log('[Website Intake] appending Customers row for ' + customerId);
   sheet.appendRow(row);
+  console.log('[Website Intake] Customers append complete at row ' + sheet.getLastRow());
 
   return {
     customerId: customerId,
@@ -196,7 +236,9 @@ function findOrCreateWebsiteLocation_(spreadsheet, input, now) {
   setIfPresent_(row, table.column, 'CreatedAt', now);
   setIfPresent_(row, table.column, 'UpdatedAt', now);
   setIfPresent_(row, table.column, 'UpdatedBy', UPDATED_BY);
+  console.log('[Website Intake] appending ServiceLocations row for ' + locationId);
   sheet.appendRow(row);
+  console.log('[Website Intake] ServiceLocations append complete at row ' + sheet.getLastRow());
 
   return {
     locationId: locationId,
@@ -242,7 +284,9 @@ function findOrCreateWebsiteRelationship_(spreadsheet, customerId, locationId, r
   setIfPresent_(row, table.column, 'CreatedAt', now);
   setIfPresent_(row, table.column, 'UpdatedAt', now);
   setIfPresent_(row, table.column, 'UpdatedBy', UPDATED_BY);
+  console.log('[Website Intake] appending CustomerLocationRelationships row for ' + relationshipId);
   sheet.appendRow(row);
+  console.log('[Website Intake] CustomerLocationRelationships append complete at row ' + sheet.getLastRow());
 
   return {
     relationshipId: relationshipId,
@@ -290,7 +334,9 @@ function createWebsiteRequestRecord_(spreadsheet, input, customer, location, rel
   setIfPresent_(row, table.column, 'RequestStatus', 'New');
   setIfPresent_(row, table.column, 'UpdatedAt', now);
   setIfPresent_(row, table.column, 'UpdatedBy', UPDATED_BY);
+  console.log('[Website Intake] appending ServiceRequests row for ' + requestNumber + ' / ' + requestId);
   sheet.appendRow(row);
+  console.log('[Website Intake] ServiceRequests append complete at row ' + sheet.getLastRow());
 
   return { requestId: requestId, requestNumber: requestNumber };
 }
@@ -378,7 +424,7 @@ function validateWebsiteRequest_(input) {
 }
 
 function sendInternalNotification_(input, result) {
-  const subject = 'New Website Service Request - ' + result.requestNumber;
+  const subject = 'New Website Service Request - ' + result.requestNumber + ' [' + WEBSITE_INTAKE_BUILD + ']';
   const body = [
     'New website service request',
     '',
@@ -550,10 +596,4 @@ function jsonResponse_(data) {
   return ContentService
     .createTextOutput(JSON.stringify(data))
     .setMimeType(ContentService.MimeType.JSON);
-}
-
-function doGet() {
-  return ContentService
-    .createTextOutput("Cornerpost Website Intake API is online.")
-    .setMimeType(ContentService.MimeType.TEXT);
 }

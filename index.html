@@ -179,95 +179,206 @@
       </div>
     </section>
 
-    <section id="contact" class="section contact-section">
-      <div class="container contact-layout">
-        <div>
+    <section id="contact" class="section contact-section request-service-section">
+      <div class="container contact-layout request-service-layout">
+        <aside class="request-service-intro" aria-labelledby="request-service-intro-title">
           <p class="eyebrow">Request Service</p>
-          <h2>Tell us what is going on.</h2>
-          <p>Use the form to request service. For urgent plumbing issues, call directly.</p>
+          <h2 id="request-service-intro-title">We'll handle the details.</h2>
+          <span class="request-service-accent" aria-hidden="true"></span>
 
-          <div class="contact-methods">
-            <p>
-              <strong>Phone</strong>
-              <a href="#" data-phone-link><span data-phone-display></span></a>
-            </p>
+          <p>Tell us what's going on and when you'd like us to take a look.</p>
+          <p>We'll review your request, contact you if we need clarification, and schedule a convenient time to help.</p>
 
-            <p>
-              <strong>Email</strong>
-              <a href="#" data-email-link><span data-email-display></span></a>
-            </p>
+          <ul class="request-service-assurances" aria-label="Cornerpost service commitments">
+            <li>
+              <span class="assurance-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+              </span>
+              <span>Honest recommendations</span>
+            </li>
+            <li>
+              <span class="assurance-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+              </span>
+              <span>Licensed &amp; insured</span>
+            </li>
+            <li>
+              <span class="assurance-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+              </span>
+              <span>Confirmation email after submission</span>
+            </li>
+            <li>
+              <span class="assurance-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+              </span>
+              <span>Serving Western Nebraska</span>
+            </li>
+          </ul>
+
+          <div class="request-service-contact">
+            <h3>Need to talk now?</h3>
+            <p>We're happy to help.</p>
+
+            <a href="#" data-phone-link class="request-service-contact-link">
+              <span class="contact-link-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.8a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.84.57 2.8.7A2 2 0 0 1 22 16.92z"/></svg>
+              </span>
+              <span data-phone-display></span>
+            </a>
+
+            <a href="#" data-email-link class="request-service-contact-link">
+              <span class="contact-link-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+              </span>
+              <span data-email-display></span>
+            </a>
           </div>
+        </aside>
+
+        <div class="request-service-panel">
+          <div class="request-service-panel-header">
+            <h2>Request Service</h2>
+            <p>Complete the form below and we'll review your request as soon as possible.</p>
+          </div>
+
+          <form
+            action="#"
+            method="post"
+            class="service-form"
+            id="request-service-form"
+          >
+            <input
+              type="text"
+              name="companyWebsite"
+              class="website-field"
+              tabindex="-1"
+              autocomplete="off"
+              aria-hidden="true"
+            />
+
+            <section class="request-form-section" aria-labelledby="contact-information-heading">
+              <div class="request-form-section-heading">
+                <span class="request-form-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.8a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.84.57 2.8.7A2 2 0 0 1 22 16.92z"/></svg>
+                </span>
+                <h3 id="contact-information-heading">Contact Information</h3>
+              </div>
+
+              <div class="request-form-grid">
+                <input class="form-field-wide" type="text" name="name" placeholder="Name" autocomplete="name" required />
+                <input type="tel" name="phone" placeholder="Phone" autocomplete="tel" required />
+                <input type="email" name="email" placeholder="Email" autocomplete="email" />
+              </div>
+            </section>
+
+            <section class="request-form-section" aria-labelledby="service-address-heading">
+              <div class="request-form-section-heading">
+                <span class="request-form-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                </span>
+                <h3 id="service-address-heading">Service Address</h3>
+              </div>
+
+              <div class="request-form-grid">
+                <input
+                  class="form-field-wide"
+                  type="text"
+                  name="streetAddress"
+                  placeholder="Street Address"
+                  autocomplete="street-address"
+                  required
+                />
+
+                <input
+                  type="text"
+                  name="city"
+                  placeholder="City"
+                  autocomplete="address-level2"
+                  required
+                />
+
+                <select name="state" autocomplete="address-level1" required>
+                  <option value="NE" selected>Nebraska</option>
+                  <option value="WY">Wyoming</option>
+                  <option value="CO">Colorado</option>
+                  <option value="SD">South Dakota</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </section>
+
+            <section class="request-form-section" aria-labelledby="service-details-heading">
+              <div class="request-form-section-heading">
+                <span class="request-form-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4M12 16h4M8 11h.01M8 16h.01"/></svg>
+                </span>
+                <h3 id="service-details-heading">Service Details</h3>
+              </div>
+
+              <div class="request-form-grid">
+                <select name="service" required data-services-select>
+                  <option value="">Service Needed</option>
+                  <option value="Other">Other</option>
+                </select>
+
+                <select name="preferredTime">
+                  <option value="">Preferred Appointment Time</option>
+                  <option value="Morning (8-12)">Morning (8-12)</option>
+                  <option value="Afternoon (12-5)">Afternoon (12-5)</option>
+                  <option value="Evening (5-7)">Evening (5-7)</option>
+                  <option value="First Available">First Available</option>
+                </select>
+
+                <textarea class="form-field-wide" name="message" rows="5" placeholder="Project Details" required></textarea>
+              </div>
+              <p class="request-form-help">Describe the issue and include any relevant details that may help us prepare.</p>
+            </section>
+
+            <section class="request-form-section request-form-photos" aria-labelledby="photos-heading">
+              <div class="request-form-section-heading">
+                <span class="request-form-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z"/><circle cx="12" cy="13" r="3"/></svg>
+                </span>
+                <h3 id="photos-heading">Photos <small>(optional)</small></h3>
+              </div>
+
+              <label class="file-upload">
+                <span class="file-upload-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z"/><circle cx="12" cy="13" r="3"/></svg>
+                </span>
+                <span class="file-upload-copy">
+                  <strong>Photos help us understand the issue before we arrive.</strong>
+                  <small>Up to 3 photos &bull; Maximum 5 MB each</small>
+                </span>
+                <span class="file-upload-button">Choose Files</span>
+                <input type="file" name="photoFiles" accept="image/*" multiple />
+              </label>
+              <p class="file-help" id="file-help">You can drag and drop files here, or click to browse.</p>
+              <ul class="file-list" id="file-list" aria-live="polite"></ul>
+            </section>
+
+            <div class="form-status" id="form-status" aria-live="polite"></div>
+
+            <div class="request-form-submit">
+              <span class="request-form-submit-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+              </span>
+              <div class="request-form-submit-copy">
+                <h3>Before you submit</h3>
+                <p>We'll review your request and send a confirmation email with your reference number.</p>
+                <p>If we need additional information, we'll contact you before scheduling your service.</p>
+              </div>
+              <div class="request-form-submit-action">
+                <button type="submit" class="button button-primary">Request Service</button>
+                <span class="request-form-security">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  Your information is secure and never shared.
+                </span>
+              </div>
+            </div>
+          </form>
         </div>
-
-        <form
-          action="#"
-          method="post"
-          class="service-form"
-          id="request-service-form"
-        >
-          <input
-            type="text"
-            name="companyWebsite"
-            class="website-field"
-            tabindex="-1"
-            autocomplete="off"
-            aria-hidden="true"
-          />
-
-          <input type="text" name="name" placeholder="Name" autocomplete="name" required />
-          <input type="tel" name="phone" placeholder="Phone" autocomplete="tel" required />
-          <input type="email" name="email" placeholder="Email" autocomplete="email" />
-
-          <input
-            type="text"
-            name="streetAddress"
-            placeholder="Street Address"
-            autocomplete="street-address"
-            required
-          />
-
-          <input
-            type="text"
-            name="city"
-            placeholder="City"
-            autocomplete="address-level2"
-            required
-          />
-
-          <select name="state" autocomplete="address-level1" required>
-            <option value="NE" selected>Nebraska</option>
-            <option value="WY">Wyoming</option>
-            <option value="CO">Colorado</option>
-            <option value="SD">South Dakota</option>
-            <option value="Other">Other</option>
-          </select>
-
-          <select name="service" required data-services-select>
-            <option value="">Service Needed</option>
-            <option value="Other">Other</option>
-          </select>
-
-          <select name="preferredTime">
-            <option value="">Preferred Appointment Time</option>
-            <option value="Morning (8-12)">Morning (8-12)</option>
-            <option value="Afternoon (12-5)">Afternoon (12-5)</option>
-            <option value="Evening (5-7)">Evening (5-7)</option>
-            <option value="First Available">First Available</option>
-          </select>
-
-          <label class="file-upload">
-            <span>Upload Photos <small>(optional, up to 3 photos)</small></span>
-            <input type="file" name="photoFiles" accept="image/*" multiple />
-          </label>
-          <p class="file-help" id="file-help">Photos help us understand the issue before we arrive. Maximum 5 MB per photo.</p>
-          <ul class="file-list" id="file-list" aria-live="polite"></ul>
-
-          <textarea name="message" rows="5" placeholder="Project Details" required></textarea>
-
-          <div class="form-status" id="form-status" aria-live="polite"></div>
-
-          <button type="submit" class="button button-primary">Request Service</button>
-        </form>
       </div>
     </section>
   </main>
