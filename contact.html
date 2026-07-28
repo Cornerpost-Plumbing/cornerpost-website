@@ -122,9 +122,25 @@
             aria-hidden="true"
           />
 
-          <input type="text" name="name" placeholder="Name" autocomplete="name" required />
+          <input type="text" name="firstName" placeholder="First Name" autocomplete="given-name" required />
+          <input type="text" name="lastName" placeholder="Last Name" autocomplete="family-name" required />
           <input type="tel" name="phone" placeholder="Phone" autocomplete="tel" required />
           <input type="email" name="email" placeholder="Email" autocomplete="email" />
+
+          <select name="preferredContact" required>
+            <option value="No Preference" selected>Preferred Contact: No Preference</option>
+            <option value="Call">Preferred Contact: Call</option>
+            <option value="Text">Preferred Contact: Text</option>
+            <option value="Email">Preferred Contact: Email</option>
+          </select>
+
+          <select name="relationshipType" required>
+            <option value="">Do you own or rent this property?</option>
+            <option value="Owner">I own the property</option>
+            <option value="Tenant">I rent the property</option>
+          </select>
+
+          <p class="form-section-heading">Service Address</p>
 
           <input
             type="text"
@@ -132,6 +148,13 @@
             placeholder="Street Address"
             autocomplete="street-address"
             required
+          />
+
+          <input
+            type="text"
+            name="address2"
+            placeholder="Apartment, Unit, or Suite"
+            autocomplete="address-line2"
           />
 
           <input
@@ -147,8 +170,35 @@
             <option value="WY">Wyoming</option>
             <option value="CO">Colorado</option>
             <option value="SD">South Dakota</option>
-            <option value="Other">Other</option>
           </select>
+
+          <input
+            type="text"
+            name="zip"
+            placeholder="ZIP Code"
+            autocomplete="postal-code"
+            inputmode="numeric"
+            required
+          />
+
+          <label class="form-checkbox">
+            <input type="checkbox" name="billingSameAsService" value="true" checked />
+            <span>Billing address is the same as the service address</span>
+          </label>
+
+          <div class="billing-address-fields" data-billing-address hidden>
+            <p class="form-section-heading">Billing Address</p>
+            <input type="text" name="billingAddress1" placeholder="Billing Street Address" autocomplete="billing street-address" />
+            <input type="text" name="billingAddress2" placeholder="Apartment, Unit, or Suite" autocomplete="billing address-line2" />
+            <input type="text" name="billingCity" placeholder="Billing City" autocomplete="billing address-level2" />
+            <select name="billingState" autocomplete="billing address-level1">
+              <option value="NE" selected>Nebraska</option>
+              <option value="WY">Wyoming</option>
+              <option value="CO">Colorado</option>
+              <option value="SD">South Dakota</option>
+            </select>
+            <input type="text" name="billingZip" placeholder="Billing ZIP Code" autocomplete="billing postal-code" inputmode="numeric" />
+          </div>
 
           <select name="service" required data-services-select>
             <option value="">Service Needed</option>

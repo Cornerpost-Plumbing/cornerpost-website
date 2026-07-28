@@ -669,6 +669,11 @@ function initServiceRequestForm() {
   const phoneInput = form.querySelector("input[name='phone']");
   const fileInput = form.querySelector("input[name='photoFiles']");
   const fileList = document.getElementById("file-list");
+  const billingSameInput = form.querySelector("input[name='billingSameAsService']");
+  const billingFields = form.querySelector("[data-billing-address]");
+  const billingInputs = billingFields
+    ? Array.from(billingFields.querySelectorAll("input, select"))
+    : [];
 
   if (phoneInput) {
     phoneInput.addEventListener("input", () => {
@@ -680,6 +685,23 @@ function initServiceRequestForm() {
     fileInput.addEventListener("change", () => {
       renderSelectedFiles(fileInput.files, fileList);
     });
+  }
+
+  const updateBillingAddressVisibility = () => {
+    if (!billingSameInput || !billingFields) return;
+
+    const useServiceAddress = billingSameInput.checked;
+    billingFields.hidden = useServiceAddress;
+
+    billingInputs.forEach((input) => {
+      input.required = !useServiceAddress;
+      input.disabled = useServiceAddress;
+    });
+  };
+
+  if (billingSameInput) {
+    billingSameInput.addEventListener("change", updateBillingAddressVisibility);
+    updateBillingAddressVisibility();
   }
 
   applyRequestedServiceSelection(form);
@@ -717,6 +739,7 @@ function initServiceRequestForm() {
 
       showSuccess(status);
       form.reset();
+      updateBillingAddressVisibility();
 
       if (fileList) {
         fileList.innerHTML = "";
@@ -782,7 +805,7 @@ function filesToBase64(files) {
 
           resolve({
             name: file.name,
-            mimeType: file.type,
+            type: file.type,
             data: base64Data
           });
         };
