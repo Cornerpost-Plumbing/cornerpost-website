@@ -107,6 +107,14 @@ window.Cornerpost = {
       serviceCatalogId: "#plumbing-services",
       contactPointId: "#customer-service",
       primaryImageId: "#primary-image",
+      breadcrumbId: "#breadcrumb",
+      pageLabels: {
+        home: "Home",
+        services: "Services",
+        about: "About",
+        reviews: "Reviews",
+        contact: "Contact"
+      },
       logo: "images/branding/cornerpost-logo.png",
       image: "images/hero/hero-western-ne.png",
       country: "US",

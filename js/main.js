@@ -289,6 +289,7 @@ function applyStructuredData() {
   const catalogId = `${siteUrl}/services.html${schemaConfig.serviceCatalogId || "#plumbing-services"}`;
   const contactPointId = `${siteUrl}/contact.html${schemaConfig.contactPointId || "#customer-service"}`;
   const primaryImageId = `${currentUrl}${schemaConfig.primaryImageId || "#primary-image"}`;
+  const breadcrumbId = `${currentUrl}${schemaConfig.breadcrumbId || "#breadcrumb"}`;
   const webpageId = `${currentUrl}#webpage`;
   const graph = [];
 
@@ -351,6 +352,13 @@ function applyStructuredData() {
     representativeOfPage: true
   });
 
+  const breadcrumbNode = buildBreadcrumbNode(
+    siteUrl,
+    pageName,
+    breadcrumbId,
+    schemaConfig.pageLabels
+  );
+
   const pageNode = removeEmptySchemaValues({
     "@type": getSchemaPageType(pageName),
     "@id": webpageId,
@@ -361,6 +369,7 @@ function applyStructuredData() {
     about: { "@id": businessId },
     publisher: { "@id": businessId },
     primaryImageOfPage: { "@id": primaryImageId },
+    breadcrumb: breadcrumbNode ? { "@id": breadcrumbId } : null,
     mainEntity: getPageMainEntity(pageName, businessId, catalogId, contactPointId),
     mentions: pageName === "services"
       ? serviceNodes.map((service) => ({ "@id": service["@id"] }))
@@ -378,6 +387,7 @@ function applyStructuredData() {
 
   graph.push(businessNode, websiteNode, contactPointNode, primaryImageNode);
   if (serviceCatalogNode) graph.push(serviceCatalogNode);
+  if (breadcrumbNode) graph.push(breadcrumbNode);
   graph.push(...serviceNodes, pageNode);
 
   injectJsonLd({
@@ -391,6 +401,39 @@ function getPageMainEntity(pageName, businessId, catalogId, contactPointId) {
   if (pageName === "contact") return { "@id": contactPointId };
   if (pageName === "home" || pageName === "about") return { "@id": businessId };
   return null;
+}
+
+function buildBreadcrumbNode(siteUrl, pageName, breadcrumbId, pageLabels) {
+  const labels = pageLabels || {};
+  const items = [
+    {
+      "@type": "ListItem",
+      position: 1,
+      name: labels.home || "Home",
+      item: `${siteUrl}/`
+    }
+  ];
+
+  if (pageName !== "home") {
+    items.push({
+      "@type": "ListItem",
+      position: 2,
+      name: labels[pageName] || formatPageLabel(pageName),
+      item: buildPageUrl(siteUrl, pageName)
+    });
+  }
+
+  return {
+    "@type": "BreadcrumbList",
+    "@id": breadcrumbId,
+    itemListElement: items
+  };
+}
+
+function formatPageLabel(pageName) {
+  return String(pageName || "")
+    .replace(/[-_]+/g, " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
 function buildBusinessAddress(addressConfig) {
