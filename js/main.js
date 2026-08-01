@@ -183,17 +183,25 @@ function applySiteConfig() {
   setText("[data-reviews-feedback-message]", reviewsConfig.feedbackMessage);
 
   document.querySelectorAll("[data-leave-review-link]").forEach((element) => {
-    if (reviewsConfig.leaveReviewUrl) {
-      element.setAttribute("href", reviewsConfig.leaveReviewUrl);
-      element.removeAttribute("aria-disabled");
-      element.classList.remove("is-disabled");
-    } else {
-      element.setAttribute("href", "#");
-      element.setAttribute("aria-disabled", "true");
-      element.classList.add("is-disabled");
-      element.addEventListener("click", (event) => event.preventDefault());
-    }
-  });
+  if (reviewsConfig.leaveReviewUrl) {
+    element.setAttribute("href", reviewsConfig.leaveReviewUrl);
+
+    // Open Google Reviews in a new tab
+    element.setAttribute("target", "_blank");
+    element.setAttribute("rel", "noopener noreferrer");
+
+    element.removeAttribute("aria-disabled");
+    element.classList.remove("is-disabled");
+  } else {
+    element.setAttribute("href", "#");
+    element.removeAttribute("target");
+    element.removeAttribute("rel");
+
+    element.setAttribute("aria-disabled", "true");
+    element.classList.add("is-disabled");
+    element.addEventListener("click", (event) => event.preventDefault());
+  }
+});
 
   document.querySelectorAll("[data-reviews-profile-link]").forEach((element) => {
     if (reviewsConfig.profileUrl) {
