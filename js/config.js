@@ -71,12 +71,35 @@ window.Cornerpost = {
   },
 
   seo: {
-    homeTitle: "Cornerpost Plumbing | Plumbing Service in Scottsbluff & Western Nebraska",
-    servicesTitle: "Plumbing Services | Cornerpost Plumbing",
-    contactTitle: "Contact Cornerpost Plumbing | Request Plumbing Service",
-    aboutTitle: "About Cornerpost Plumbing | Honest Recommendations and Quality Craftsmanship",
-    reviewsTitle: "Customer Reviews | Cornerpost Plumbing",
-    description: "Cornerpost Plumbing provides residential plumbing repair, drain cleaning, sewer camera inspections, water heater service, gas piping, remodel plumbing, leak detection, emergency plumbing, and septic installation throughout western Nebraska.",
+    pages: {
+      home: {
+        title: "Residential Plumber in Scottsbluff, NE | Cornerpost Plumbing",
+        description: "Cornerpost Plumbing provides residential plumbing repair, drain cleaning, sewer camera inspections, water heater service, gas piping, leak detection, emergency plumbing, and septic installation throughout western Nebraska.",
+        canonical: "https://cornerpostplumbing.com/"
+      },
+      services: {
+        title: "Plumbing Services in Western Nebraska | Cornerpost Plumbing",
+        description: "Explore residential plumbing repair, drain cleaning, sewer camera inspections, water heater service, gas piping, remodel plumbing, leak detection, emergency service, and septic installation.",
+        canonical: "https://cornerpostplumbing.com/services.html"
+      },
+      about: {
+        title: "About Cornerpost Plumbing | Western Nebraska Master Plumber",
+        description: "Learn about Cornerpost Plumbing, a licensed Master Plumber and Gasfitter serving western Nebraska with honest recommendations, quality craftsmanship, and thoughtful service.",
+        canonical: "https://cornerpostplumbing.com/about.html"
+      },
+      reviews: {
+        title: "Customer Reviews | Cornerpost Plumbing",
+        description: "Read customer feedback about Cornerpost Plumbing and learn what homeowners can expect from our residential plumbing service throughout western Nebraska.",
+        canonical: "https://cornerpostplumbing.com/reviews.html"
+      },
+      contact: {
+        title: "Request Plumbing Service | Cornerpost Plumbing",
+        description: "Request residential plumbing service from Cornerpost Plumbing. Send your service details online or call for urgent plumbing help throughout western Nebraska.",
+        canonical: "https://cornerpostplumbing.com/contact.html"
+      }
+    },
+    socialImage: "images/hero/hero-truck-facebook.jpg",
+    description: "Cornerpost Plumbing provides residential plumbing repair, drain cleaning, sewer camera inspections, water heater service, gas piping, leak detection, emergency plumbing, and septic installation throughout western Nebraska.",
     schema: {
       siteName: "Cornerpost Plumbing",
       businessId: "#cornerpost-plumbing",
@@ -94,5 +117,4 @@ window.Cornerpost = {
         addressCountry: "US"
       }
     }
-  }
-};
+  }};

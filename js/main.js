@@ -131,23 +131,8 @@ function applySiteConfig() {
   const branding = config.branding || {};
   const seo = config.seo || {};
 
-  const pageName = document.body.dataset.page;
-  if (pageName === "services" && seo.servicesTitle) {
-    document.title = seo.servicesTitle;
-  } else if (pageName === "contact" && seo.contactTitle) {
-    document.title = seo.contactTitle;
-  } else if (pageName === "about" && seo.aboutTitle) {
-    document.title = seo.aboutTitle;
-  } else if (pageName === "reviews" && seo.reviewsTitle) {
-    document.title = seo.reviewsTitle;
-  } else if (seo.homeTitle) {
-    document.title = seo.homeTitle;
-  }
-
-  const description = document.querySelector("meta[name='description']");
-  if (description && seo.description) {
-    description.setAttribute("content", seo.description);
-  }
+  const pageName = getCurrentPage();
+  applyPageMetadata(seo, pageName, business, branding);
 
   setText("[data-business-name]", business.name);
   setText("[data-business-slogan]", business.slogan);
@@ -232,6 +217,58 @@ function applySiteConfig() {
   });
 }
 
+
+function applyPageMetadata(seo, pageName, business, branding) {
+  const page = seo?.pages?.[pageName] || seo?.pages?.home || {};
+  const siteName = business?.name || "Cornerpost Plumbing";
+  const title = page.title || document.title;
+  const description = page.description || seo?.description || "";
+  const canonical = page.canonical || window.location.href.split("#")[0].split("?")[0];
+  const siteUrl = normalizeSiteUrl(business?.website);
+  const socialImage = toAbsoluteUrl(siteUrl, seo?.socialImage || branding?.heroImage);
+
+  if (title) document.title = title;
+  upsertMetaTag("name", "description", description);
+  upsertMetaTag("name", "robots", "index, follow, max-image-preview:large");
+  upsertLinkTag("canonical", canonical);
+
+  upsertMetaTag("property", "og:type", "website");
+  upsertMetaTag("property", "og:site_name", siteName);
+  upsertMetaTag("property", "og:locale", "en_US");
+  upsertMetaTag("property", "og:title", title);
+  upsertMetaTag("property", "og:description", description);
+  upsertMetaTag("property", "og:url", canonical);
+  upsertMetaTag("property", "og:image", socialImage);
+  upsertMetaTag("property", "og:image:alt", `${siteName} service truck in western Nebraska`);
+
+  upsertMetaTag("name", "twitter:card", "summary_large_image");
+  upsertMetaTag("name", "twitter:title", title);
+  upsertMetaTag("name", "twitter:description", description);
+  upsertMetaTag("name", "twitter:image", socialImage);
+}
+
+function upsertMetaTag(attribute, key, content) {
+  if (!key || !content) return;
+  let element = document.head.querySelector(`meta[${attribute}="${key}"]`);
+  if (!element) {
+    element = document.createElement("meta");
+    element.setAttribute(attribute, key);
+    document.head.appendChild(element);
+  }
+  element.setAttribute("content", content);
+}
+
+function upsertLinkTag(rel, href) {
+  if (!rel || !href) return;
+  let element = document.head.querySelector(`link[rel="${rel}"]`);
+  if (!element) {
+    element = document.createElement("link");
+    element.setAttribute("rel", rel);
+    document.head.appendChild(element);
+  }
+  element.setAttribute("href", href);
+}
+
 function applyStructuredData() {
   const config = getConfig();
   if (!config) return;
@@ -259,7 +296,7 @@ function applyStructuredData() {
     url: siteUrl,
     logo: toAbsoluteUrl(siteUrl, schemaConfig.logo || branding.logo),
     image: toAbsoluteUrl(siteUrl, schemaConfig.image || branding.heroImage),
-    description: config.seo?.description,
+    description: config.seo?.pages?.[pageName]?.description || config.seo?.description,
     slogan: business.slogan,
     telephone: phone.digits ? `+1${phone.digits}` : phone.display,
     email: business.email,
