@@ -1,10 +1,77 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset
+  xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+  xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
     <loc>https://cornerpostplumbing.com/</loc>
-    <priority>1.0</priority>
+    <lastmod>2026-07-31</lastmod>
+    <image:image>
+      <image:loc>https://cornerpostplumbing.com/images/hero/hero-western-ne.png</image:loc>
+      <image:title>Cornerpost Plumbing serving western Nebraska</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://cornerpostplumbing.com/images/branding/cornerpost-logo.png</image:loc>
+      <image:title>Cornerpost Plumbing logo</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://cornerpostplumbing.com/images/social/cornerpost-social-share.jpg</image:loc>
+      <image:title>Cornerpost Plumbing social share image</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://cornerpostplumbing.com/services.html</loc>
+    <lastmod>2026-07-31</lastmod>
+    <image:image>
+      <image:loc>https://cornerpostplumbing.com/images/services/general-plumbing.jpg</image:loc>
+      <image:title>General plumbing repair</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://cornerpostplumbing.com/images/services/drain-cleaning.jpg</image:loc>
+      <image:title>Drain cleaning</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://cornerpostplumbing.com/images/services/sewer-camera-inspection.jpg</image:loc>
+      <image:title>Sewer camera inspection</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://cornerpostplumbing.com/images/services/water-heater-service.jpg</image:loc>
+      <image:title>Water heater service</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://cornerpostplumbing.com/images/services/gas-piping.jpg</image:loc>
+      <image:title>Gas piping service</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://cornerpostplumbing.com/images/services/remodel-plumbing.jpg</image:loc>
+      <image:title>Remodel plumbing</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://cornerpostplumbing.com/images/services/leak-detection-repair.jpg</image:loc>
+      <image:title>Leak detection and repair</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://cornerpostplumbing.com/images/services/emergency-service.jpg</image:loc>
+      <image:title>Emergency plumbing service</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://cornerpostplumbing.com/images/services/septic-installation.jpg</image:loc>
+      <image:title>Septic installation</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://cornerpostplumbing.com/about.html</loc>
+    <lastmod>2026-07-31</lastmod>
+    <image:image>
+      <image:loc>https://cornerpostplumbing.com/images/about/owner-photo.jpg</image:loc>
+      <image:title>Cornerpost Plumbing owner</image:title>
+    </image:image>
   </url>
   <url>
     <loc>https://cornerpostplumbing.com/reviews.html</loc>
+    <lastmod>2026-07-31</lastmod>
+  </url>
+  <url>
+    <loc>https://cornerpostplumbing.com/contact.html</loc>
+    <lastmod>2026-07-31</lastmod>
   </url>
 </urlset>
