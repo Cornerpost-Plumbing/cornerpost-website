@@ -226,6 +226,10 @@ function applyPageMetadata(seo, pageName, business, branding) {
   const canonical = page.canonical || window.location.href.split("#")[0].split("?")[0];
   const siteUrl = normalizeSiteUrl(business?.website);
   const socialImage = toAbsoluteUrl(siteUrl, seo?.socialImage || branding?.heroImage);
+  const socialImageAlt = seo?.socialImageAlt || `${siteName} serving western Nebraska`;
+  const socialImageWidth = seo?.socialImageWidth || "1200";
+  const socialImageHeight = seo?.socialImageHeight || "630";
+  const socialImageType = seo?.socialImageType || "image/jpeg";
 
   if (title) document.title = title;
   upsertMetaTag("name", "description", description);
@@ -239,12 +243,16 @@ function applyPageMetadata(seo, pageName, business, branding) {
   upsertMetaTag("property", "og:description", description);
   upsertMetaTag("property", "og:url", canonical);
   upsertMetaTag("property", "og:image", socialImage);
-  upsertMetaTag("property", "og:image:alt", `${siteName} service truck in western Nebraska`);
+  upsertMetaTag("property", "og:image:width", socialImageWidth);
+  upsertMetaTag("property", "og:image:height", socialImageHeight);
+  upsertMetaTag("property", "og:image:type", socialImageType);
+  upsertMetaTag("property", "og:image:alt", socialImageAlt);
 
   upsertMetaTag("name", "twitter:card", "summary_large_image");
   upsertMetaTag("name", "twitter:title", title);
   upsertMetaTag("name", "twitter:description", description);
   upsertMetaTag("name", "twitter:image", socialImage);
+  upsertMetaTag("name", "twitter:image:alt", socialImageAlt);
 }
 
 function upsertMetaTag(attribute, key, content) {
@@ -323,6 +331,7 @@ function applyStructuredData() {
     slogan: business.slogan,
     telephone: phone.digits ? `+1${phone.digits}` : phone.display,
     email: business.email,
+    priceRange: schemaConfig.priceRange,
     areaServed: {
       "@type": "Place",
       name: schemaConfig.areaServed || buildServiceAreaSummary(serviceArea)
