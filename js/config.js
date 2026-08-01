@@ -54,7 +54,7 @@ window.Cornerpost = {
 
   reviews: {
     profileUrl: "",
-    leaveReviewUrl: "",
+    leaveReviewUrl: "https://g.page/r/CTrjvPrCKrGTEBM/review",
     sourceName: "Google",
     homeHeading: "Recent Customer Reviews",
     homeIntro: "The newest customer feedback will appear here as Cornerpost begins serving the community.",
