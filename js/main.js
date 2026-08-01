@@ -3,6 +3,7 @@ document.addEventListener("DOMContentLoaded", () => {
   renderServiceContent();
   renderReviewContent();
   applySiteConfig();
+  applyStructuredData();
   initMobileNavigation();
   initAnchorScrollOffset();
   initServiceRequestForm();
@@ -229,6 +230,197 @@ function applySiteConfig() {
   document.querySelectorAll("[data-hero-image]").forEach((image) => {
     if (branding.heroImage) image.setAttribute("src", branding.heroImage);
   });
+}
+
+function applyStructuredData() {
+  const config = getConfig();
+  if (!config) return;
+
+  const schemaConfig = config.seo?.schema || {};
+  const business = config.business || {};
+  const phone = business.phone || {};
+  const serviceArea = business.serviceArea || {};
+  const branding = config.branding || {};
+  const pageName = getCurrentPage();
+  const siteUrl = normalizeSiteUrl(business.website);
+
+  if (!siteUrl) return;
+
+  const currentUrl = buildPageUrl(siteUrl, pageName);
+  const businessId = `${siteUrl}${schemaConfig.businessId || "#cornerpost-plumbing"}`;
+  const websiteId = `${siteUrl}${schemaConfig.websiteId || "#cornerpost-website"}`;
+  const graph = [];
+
+  const sameAs = Object.values(config.links || {}).filter((url) => isAbsoluteHttpUrl(url));
+  const businessNode = removeEmptySchemaValues({
+    "@type": "Plumber",
+    "@id": businessId,
+    name: business.name,
+    url: siteUrl,
+    logo: toAbsoluteUrl(siteUrl, schemaConfig.logo || branding.logo),
+    image: toAbsoluteUrl(siteUrl, schemaConfig.image || branding.heroImage),
+    description: config.seo?.description,
+    slogan: business.slogan,
+    telephone: phone.digits ? `+1${phone.digits}` : phone.display,
+    email: business.email,
+    areaServed: {
+      "@type": "Place",
+      name: schemaConfig.areaServed || buildServiceAreaSummary(serviceArea)
+    },
+    address: buildBusinessAddress(schemaConfig.address),
+    contactPoint: removeEmptySchemaValues({
+      "@type": "ContactPoint",
+      telephone: phone.digits ? `+1${phone.digits}` : phone.display,
+      email: business.email,
+      contactType: "customer service",
+      availableLanguage: schemaConfig.language || "en-US"
+    }),
+    hasOfferCatalog: buildServiceCatalog(siteUrl),
+    sameAs
+  });
+
+  graph.push(businessNode);
+
+  if (pageName === "home") {
+    graph.push(removeEmptySchemaValues({
+      "@type": "WebSite",
+      "@id": websiteId,
+      url: siteUrl,
+      name: schemaConfig.siteName || business.name,
+      publisher: { "@id": businessId },
+      inLanguage: schemaConfig.language || "en-US"
+    }));
+  }
+
+  graph.push(removeEmptySchemaValues({
+    "@type": getSchemaPageType(pageName),
+    "@id": `${currentUrl}#webpage`,
+    url: currentUrl,
+    name: document.title,
+    description: document.querySelector("meta[name='description']")?.getAttribute("content") || "",
+    isPartOf: { "@id": websiteId },
+    about: { "@id": businessId },
+    primaryImageOfPage: {
+      "@type": "ImageObject",
+      url: toAbsoluteUrl(siteUrl, schemaConfig.image || branding.heroImage)
+    },
+    inLanguage: schemaConfig.language || "en-US"
+  }));
+
+  injectJsonLd({
+    "@context": "https://schema.org",
+    "@graph": graph
+  });
+}
+
+function buildBusinessAddress(addressConfig) {
+  const address = addressConfig || {};
+  const hasPhysicalAddress = Boolean(
+    address.streetAddress ||
+    address.addressLocality ||
+    address.postalCode
+  );
+
+  if (!hasPhysicalAddress) return null;
+
+  return removeEmptySchemaValues({
+    "@type": "PostalAddress",
+    streetAddress: address.streetAddress,
+    addressLocality: address.addressLocality,
+    addressRegion: address.addressRegion,
+    postalCode: address.postalCode,
+    addressCountry: address.addressCountry || "US"
+  });
+}
+
+function buildServiceCatalog(siteUrl) {
+  const services = getServices();
+  if (!services.length) return null;
+
+  return {
+    "@type": "OfferCatalog",
+    name: "Plumbing Services",
+    itemListElement: services.map((service) => ({
+      "@type": "Offer",
+      itemOffered: removeEmptySchemaValues({
+        "@type": "Service",
+        name: service.requestOption || service.title,
+        description: service.shortDescription,
+        url: `${siteUrl}/services.html#${encodeURIComponent(service.id)}`,
+        provider: { "@id": `${siteUrl}#cornerpost-plumbing` },
+        areaServed: getConfig()?.seo?.schema?.areaServed || "Western Nebraska"
+      })
+    }))
+  };
+}
+
+function getSchemaPageType(pageName) {
+  if (pageName === "about") return "AboutPage";
+  if (pageName === "contact") return "ContactPage";
+  if (pageName === "services") return "CollectionPage";
+  if (pageName === "reviews") return "CollectionPage";
+  return "WebPage";
+}
+
+function buildPageUrl(siteUrl, pageName) {
+  const pagePaths = {
+    home: "/",
+    services: "/services.html",
+    contact: "/contact.html",
+    about: "/about.html",
+    reviews: "/reviews.html"
+  };
+
+  return `${siteUrl}${pagePaths[pageName] || "/"}`;
+}
+
+function normalizeSiteUrl(url) {
+  if (!isAbsoluteHttpUrl(url)) return "";
+  return String(url).replace(/\/+$/, "");
+}
+
+function toAbsoluteUrl(siteUrl, value) {
+  if (!value) return "";
+  if (isAbsoluteHttpUrl(value)) return value;
+  return `${siteUrl}/${String(value).replace(/^\/+/, "")}`;
+}
+
+function isAbsoluteHttpUrl(value) {
+  return /^https?:\/\//i.test(String(value || "").trim());
+}
+
+function removeEmptySchemaValues(value) {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => removeEmptySchemaValues(item))
+      .filter((item) => item !== undefined && item !== null && item !== "");
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value)
+        .map(([key, item]) => [key, removeEmptySchemaValues(item)])
+        .filter(([, item]) => {
+          if (item === undefined || item === null || item === "") return false;
+          if (Array.isArray(item) && item.length === 0) return false;
+          if (typeof item === "object" && !Array.isArray(item) && Object.keys(item).length === 0) return false;
+          return true;
+        })
+    );
+  }
+
+  return value;
+}
+
+function injectJsonLd(data) {
+  const existing = document.getElementById("cornerpost-structured-data");
+  if (existing) existing.remove();
+
+  const script = document.createElement("script");
+  script.id = "cornerpost-structured-data";
+  script.type = "application/ld+json";
+  script.textContent = JSON.stringify(data);
+  document.head.appendChild(script);
 }
 
 function setText(selector, value) {

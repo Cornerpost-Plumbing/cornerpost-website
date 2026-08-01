@@ -76,6 +76,23 @@ window.Cornerpost = {
     contactTitle: "Contact Cornerpost Plumbing | Request Plumbing Service",
     aboutTitle: "About Cornerpost Plumbing | Honest Recommendations and Quality Craftsmanship",
     reviewsTitle: "Customer Reviews | Cornerpost Plumbing",
-    description: "Cornerpost Plumbing provides residential plumbing repair, drain cleaning, sewer camera inspections, water heater service, gas piping, remodel plumbing, leak detection, emergency plumbing, and septic installation throughout western Nebraska."
+    description: "Cornerpost Plumbing provides residential plumbing repair, drain cleaning, sewer camera inspections, water heater service, gas piping, remodel plumbing, leak detection, emergency plumbing, and septic installation throughout western Nebraska.",
+    schema: {
+      siteName: "Cornerpost Plumbing",
+      businessId: "#cornerpost-plumbing",
+      websiteId: "#cornerpost-website",
+      logo: "images/branding/cornerpost-logo.png",
+      image: "images/hero/hero-truck-western-nebraska.jpg",
+      country: "US",
+      language: "en-US",
+      areaServed: "Western Nebraska and communities within 120 miles of Scottsbluff, Nebraska",
+      address: {
+        streetAddress: "",
+        addressLocality: "",
+        addressRegion: "NE",
+        postalCode: "",
+        addressCountry: "US"
+      }
+    }
   }
 };
