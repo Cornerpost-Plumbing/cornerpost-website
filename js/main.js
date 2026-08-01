@@ -310,7 +310,7 @@ function applyStructuredData() {
     "@type": "ContactPoint",
     "@id": contactPointId,
     telephone: phone.digits ? `+1${phone.digits}` : phone.display,
-    email: business.email,
+    email: business.email ? `mailto:${business.email}` : null,
     contactType: "customer service",
     availableLanguage: schemaConfig.language || "en-US",
     areaServed: schemaConfig.areaServed || buildServiceAreaSummary(serviceArea),
@@ -330,7 +330,7 @@ function applyStructuredData() {
     description: config.seo?.description,
     slogan: business.slogan,
     telephone: phone.digits ? `+1${phone.digits}` : phone.display,
-    email: business.email,
+    email: business.email ? `mailto:${business.email}` : null,
     priceRange: schemaConfig.priceRange,
     areaServed: {
       "@type": "Place",
