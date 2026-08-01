@@ -286,9 +286,31 @@ function applyStructuredData() {
   const currentUrl = buildPageUrl(siteUrl, pageName);
   const businessId = `${siteUrl}${schemaConfig.businessId || "#cornerpost-plumbing"}`;
   const websiteId = `${siteUrl}${schemaConfig.websiteId || "#cornerpost-website"}`;
+  const catalogId = `${siteUrl}/services.html${schemaConfig.serviceCatalogId || "#plumbing-services"}`;
+  const contactPointId = `${siteUrl}/contact.html${schemaConfig.contactPointId || "#customer-service"}`;
+  const primaryImageId = `${currentUrl}${schemaConfig.primaryImageId || "#primary-image"}`;
+  const webpageId = `${currentUrl}#webpage`;
   const graph = [];
 
   const sameAs = Object.values(config.links || {}).filter((url) => isAbsoluteHttpUrl(url));
+  const pageReferences = ["home", "services", "about", "reviews", "contact"].map((page) => ({
+    "@id": `${buildPageUrl(siteUrl, page)}#webpage`
+  }));
+
+  const contactPointNode = removeEmptySchemaValues({
+    "@type": "ContactPoint",
+    "@id": contactPointId,
+    telephone: phone.digits ? `+1${phone.digits}` : phone.display,
+    email: business.email,
+    contactType: "customer service",
+    availableLanguage: schemaConfig.language || "en-US",
+    areaServed: schemaConfig.areaServed || buildServiceAreaSummary(serviceArea),
+    url: `${siteUrl}/contact.html#request-service`
+  });
+
+  const serviceNodes = buildServiceNodes(siteUrl, businessId, catalogId);
+  const serviceCatalogNode = buildServiceCatalog(siteUrl, catalogId, serviceNodes);
+
   const businessNode = removeEmptySchemaValues({
     "@type": "Plumber",
     "@id": businessId,
@@ -296,7 +318,7 @@ function applyStructuredData() {
     url: siteUrl,
     logo: toAbsoluteUrl(siteUrl, schemaConfig.logo || branding.logo),
     image: toAbsoluteUrl(siteUrl, schemaConfig.image || branding.heroImage),
-    description: config.seo?.pages?.[pageName]?.description || config.seo?.description,
+    description: config.seo?.description,
     slogan: business.slogan,
     telephone: phone.digits ? `+1${phone.digits}` : phone.display,
     email: business.email,
@@ -305,49 +327,70 @@ function applyStructuredData() {
       name: schemaConfig.areaServed || buildServiceAreaSummary(serviceArea)
     },
     address: buildBusinessAddress(schemaConfig.address),
-    contactPoint: removeEmptySchemaValues({
-      "@type": "ContactPoint",
-      telephone: phone.digits ? `+1${phone.digits}` : phone.display,
-      email: business.email,
-      contactType: "customer service",
-      availableLanguage: schemaConfig.language || "en-US"
-    }),
-    hasOfferCatalog: buildServiceCatalog(siteUrl),
+    contactPoint: { "@id": contactPointId },
+    hasOfferCatalog: serviceCatalogNode ? { "@id": catalogId } : null,
+    mainEntityOfPage: { "@id": `${siteUrl}/#webpage` },
     sameAs
   });
 
-  graph.push(businessNode);
+  const websiteNode = removeEmptySchemaValues({
+    "@type": "WebSite",
+    "@id": websiteId,
+    url: siteUrl,
+    name: schemaConfig.siteName || business.name,
+    publisher: { "@id": businessId },
+    inLanguage: schemaConfig.language || "en-US",
+    hasPart: pageReferences
+  });
 
-  if (pageName === "home") {
-    graph.push(removeEmptySchemaValues({
-      "@type": "WebSite",
-      "@id": websiteId,
-      url: siteUrl,
-      name: schemaConfig.siteName || business.name,
-      publisher: { "@id": businessId },
-      inLanguage: schemaConfig.language || "en-US"
-    }));
-  }
+  const primaryImageNode = removeEmptySchemaValues({
+    "@type": "ImageObject",
+    "@id": primaryImageId,
+    url: toAbsoluteUrl(siteUrl, schemaConfig.image || branding.heroImage),
+    contentUrl: toAbsoluteUrl(siteUrl, schemaConfig.image || branding.heroImage),
+    representativeOfPage: true
+  });
 
-  graph.push(removeEmptySchemaValues({
+  const pageNode = removeEmptySchemaValues({
     "@type": getSchemaPageType(pageName),
-    "@id": `${currentUrl}#webpage`,
+    "@id": webpageId,
     url: currentUrl,
     name: document.title,
     description: document.querySelector("meta[name='description']")?.getAttribute("content") || "",
     isPartOf: { "@id": websiteId },
     about: { "@id": businessId },
-    primaryImageOfPage: {
-      "@type": "ImageObject",
-      url: toAbsoluteUrl(siteUrl, schemaConfig.image || branding.heroImage)
-    },
-    inLanguage: schemaConfig.language || "en-US"
-  }));
+    publisher: { "@id": businessId },
+    primaryImageOfPage: { "@id": primaryImageId },
+    mainEntity: getPageMainEntity(pageName, businessId, catalogId, contactPointId),
+    mentions: pageName === "services"
+      ? serviceNodes.map((service) => ({ "@id": service["@id"] }))
+      : null,
+    potentialAction: pageName === "contact"
+      ? {
+          "@type": "CommunicateAction",
+          target: `${siteUrl}/contact.html#request-service`,
+          recipient: { "@id": businessId }
+        }
+      : null,
+    inLanguage: schemaConfig.language || "en-US",
+    isAccessibleForFree: true
+  });
+
+  graph.push(businessNode, websiteNode, contactPointNode, primaryImageNode);
+  if (serviceCatalogNode) graph.push(serviceCatalogNode);
+  graph.push(...serviceNodes, pageNode);
 
   injectJsonLd({
     "@context": "https://schema.org",
     "@graph": graph
   });
+}
+
+function getPageMainEntity(pageName, businessId, catalogId, contactPointId) {
+  if (pageName === "services") return { "@id": catalogId };
+  if (pageName === "contact") return { "@id": contactPointId };
+  if (pageName === "home" || pageName === "about") return { "@id": businessId };
+  return null;
 }
 
 function buildBusinessAddress(addressConfig) {
@@ -370,23 +413,39 @@ function buildBusinessAddress(addressConfig) {
   });
 }
 
-function buildServiceCatalog(siteUrl) {
-  const services = getServices();
-  if (!services.length) return null;
+function buildServiceNodes(siteUrl, businessId, catalogId) {
+  return getServices().map((service) => removeEmptySchemaValues({
+    "@type": "Service",
+    "@id": `${siteUrl}/services.html#service-${encodeURIComponent(service.id)}`,
+    name: service.requestOption || service.title,
+    description: service.shortDescription,
+    url: `${siteUrl}/services.html#${encodeURIComponent(service.id)}`,
+    provider: { "@id": businessId },
+    isPartOf: { "@id": catalogId },
+    areaServed: {
+      "@type": "Place",
+      name: getConfig()?.seo?.schema?.areaServed || "Western Nebraska"
+    },
+    availableChannel: {
+      "@type": "ServiceChannel",
+      serviceUrl: `${siteUrl}/contact.html#request-service`,
+      availableLanguage: getConfig()?.seo?.schema?.language || "en-US"
+    }
+  }));
+}
+
+function buildServiceCatalog(siteUrl, catalogId, serviceNodes) {
+  if (!serviceNodes.length) return null;
 
   return {
     "@type": "OfferCatalog",
+    "@id": catalogId,
     name: "Plumbing Services",
-    itemListElement: services.map((service) => ({
+    url: `${siteUrl}/services.html`,
+    itemListElement: serviceNodes.map((service) => ({
       "@type": "Offer",
-      itemOffered: removeEmptySchemaValues({
-        "@type": "Service",
-        name: service.requestOption || service.title,
-        description: service.shortDescription,
-        url: `${siteUrl}/services.html#${encodeURIComponent(service.id)}`,
-        provider: { "@id": `${siteUrl}#cornerpost-plumbing` },
-        areaServed: getConfig()?.seo?.schema?.areaServed || "Western Nebraska"
-      })
+      url: service.url,
+      itemOffered: { "@id": service["@id"] }
     }))
   };
 }
