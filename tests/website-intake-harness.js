@@ -80,6 +80,7 @@ function world(options) {
   const created = { folders: [], files: [] };
   const logs = [];
   const v520Calls = [];
+  const emailCalls = [];
 
   /* Drive: folders remember their names so find-or-create is real. */
   const existingFolders = (opt.existingFolders || []).slice();
@@ -166,6 +167,17 @@ function world(options) {
           idempotent: v520Calls.length > 1,
           request: { requestNumber: 'SR-20260813-001' }
         };
+      },
+      /* Email presentation belongs to the Service System now. This records
+         what the intake hands over; what the Service System then RENDERS is
+         proved by its own harness, against the real templates. */
+      sendWebsiteServiceRequestEmailsV520: function (request) {
+        emailCalls.push(request);
+        if (opt.emailThrows) throw new Error('mail quota exceeded');
+        return {
+          customer: { sent: !!request.email, skipped: !request.email, error: '' },
+          internal: { sent: true, error: '' }
+        };
       }
     },
     console: {
@@ -190,6 +202,7 @@ function world(options) {
     },
     fn: function (name) { return vm.runInContext(name, ctx); },
     v520Calls: function () { return v520Calls; },
+    emailCalls: function () { return emailCalls; },
     sent: function () { return sent; },
     created: function () { return created; },
     logs: function () { return logs; },
@@ -402,18 +415,16 @@ check('...photos ADDED on a retry are not applied to the existing folder', funct
   w.post(form({ photos: twoPhotos }));
   return w.created().folders.length === 1 && w.created().files.length === 1;
 });
-check('...and photos arriving on a replay are reported to the office, not swallowed', function () {
+check('...and photos arriving on a replay are flagged for the office', function () {
   /* The request already exists and the Service System will not rewrite it,
-     so the only honest thing the website can do is say so. */
+     so the only honest thing the website can do is say so on the handover. */
   const w = world({ v520: function (payload, n) {
     return { success: true, idempotent: n > 1, request: { requestNumber: 'SR-20260813-001' } };
   } });
   w.post(form());                      /* creates the request, no photos */
   w.post(form({ photos: onePhoto }));  /* replay, photos this time */
-  const office = w.sent().filter(function (m) { return m.to.indexOf('Cornerpost') !== -1; }).pop();
-  return office.subject.indexOf('Photos added') !== -1 &&
-    office.body.indexOf('NOT on the request record') !== -1 &&
-    office.body.indexOf('Photos: https://drive.example/') !== -1;
+  const second = w.emailCalls()[1] || {};
+  return second.photosNeedAttention === true && second.isReplay === true;
 });
 check('a replay re-uses the same folder and uploads nothing again', function () {
   const w = world({});
@@ -579,35 +590,65 @@ check('the honeypot still creates nothing and reveals nothing', function () {
   return r.success === true && w.v520Calls().length === 0 &&
     w.sent().length === 0 && Object.keys(r).join(',') === 'success';
 });
-check('a created request notifies the office and the customer', function () {
+/* EMAIL PRESENTATION LEFT THIS PROJECT.
+ *
+ * These assertions used to read MailApp messages composed here. They now
+ * assert the HANDOVER instead -- what the intake tells the Service System --
+ * because composing the message is no longer this project's job. What the
+ * Service System renders from it is proved by its own harness, against the
+ * real approved templates. */
+check('a created request hands notification to the Service System', function () {
   const w = world({});
   w.post(form());
-  return w.sent().length === 2;
+  return w.emailCalls().length === 1 && w.sent().length === 0;
 });
-check('the office email carries the request number and no internal UUIDs', function () {
+check('...and composes no email of its own', function () {
+  return CODE.indexOf('MailApp') === -1 && CODE.indexOf('GmailApp') === -1 &&
+    CODE.indexOf('htmlBody') === -1 && CODE.indexOf('inlineImages') === -1 &&
+    CODE.indexOf('HtmlService') === -1;
+});
+check('the handover carries the request number and no internal identifiers', function () {
   const w = world({});
   w.post(form());
-  const office = w.sent().filter(function (m) { return m.to.indexOf('Cornerpost') !== -1; })[0];
-  return office.body.indexOf('SR-20260813-001') !== -1 &&
-    ['CustomerID', 'LocationID', 'RelationshipID', 'RequestID']
-      .every(function (k) { return office.body.indexOf(k) === -1; });
+  const c = w.emailCalls()[0] || {};
+  const text = JSON.stringify(c);
+  return c.requestNumber === 'SR-20260813-001' &&
+    ['CustomerID', 'LocationID', 'RelationshipID', 'RequestID', 'customerId', 'locationId']
+      .every(function (k) { return text.indexOf(k) === -1; }) &&
+    !/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/.test(text);
 });
-check('a replay says plainly that it is a replay', function () {
+check('a replay is handed over as a replay', function () {
   const w = world({});
   w.post(form());
   w.post(form());
-  const last = w.sent()[w.sent().length - 2];
-  return last.subject.indexOf('Resubmitted') !== -1;
+  const first = w.emailCalls()[0] || {}, second = w.emailCalls()[1] || {};
+  return first.isReplay === false && second.isReplay === true;
 });
-check('no confirmation is sent when no email was given', function () {
+check('photos-on-replay is handed over as needing attention', function () {
+  const w = world({});
+  w.post(form());
+  w.post(form({ photos: onePhoto }));
+  const second = w.emailCalls()[1] || {};
+  return second.photosNeedAttention === true && second.isReplay === true &&
+    /^https:\/\/drive\.example\/folders\//.test(second.photoFolderUrl || '');
+});
+check('a missing customer email is handed over as empty, not invented', function () {
   const w = world({});
   w.post(form({ email: '' }));
-  return w.sent().length === 1;
+  const c = w.emailCalls()[0] || {};
+  return c.email === '' && w.emailCalls().length === 1;
 });
-check('nothing is emailed when the request was refused', function () {
+check('a notification failure cannot fail the submission', function () {
+  /* The record is already committed. An email that will not send is not a
+     reason to tell the customer their request did not happen. */
+  const w = world({ emailThrows: true });
+  const r = w.post(form());
+  return r.success === true && r.requestNumber === 'SR-20260813-001';
+});
+check('nothing is handed over when the request was refused', function () {
   const w = world({});
   w.post(form({ message: '' }));
-  return w.sent().length === 0;
+  return w.emailCalls().length === 0 && w.sent().length === 0;
 });
 
 /* ── 7. The payload handed to the Service System ──────────────────────── */

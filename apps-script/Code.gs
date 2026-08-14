@@ -22,11 +22,18 @@
  * script never learns which spreadsheet that is, and has no way to choose
  * one.
  *
- * WHAT STAYS HERE: public input quality, spam control, photo transport, the
- * notification emails, and a public response that says as little as it can.
+ * WHAT STAYS HERE: public input quality, spam control, photo transport, and
+ * a public response that says as little as it can.
+ *
+ * WHAT LEFT: the two notification emails. They were composed here as plain
+ * text with no template and no logo. Cornerpost's email presentation, its
+ * managed brand assets and its template library already exist in the Service
+ * System, so the emails are rendered and sent there through
+ * sendWebsiteServiceRequestEmailsV520 -- for the same reason the records are:
+ * a second copy of Cornerpost's own design rules, kept in step by hand, is
+ * exactly what this boundary exists to prevent.
  */
 
-const SERVICE_EMAIL = 'Service@CornerpostPlumbing.com';
 const PHOTO_FOLDER_ID_PROPERTY = 'WEBSITE_REQUEST_PHOTO_FOLDER_ID';
 const WEBSITE_INTAKE_BUILD = '2026-08-13.1';
 
@@ -158,9 +165,17 @@ function doPost(e) {
         '; the request record cannot be updated from here');
     }
 
-    sendInternalNotification_(input, requestNumber, photoFolderUrl, result.idempotent,
-      photosNeedAttention);
-    sendCustomerConfirmation_(input, requestNumber);
+    /* PRESENTATION IS THE SERVICE SYSTEM'S. This project used to compose
+     * both emails itself as plain text. It no longer does: the templates,
+     * the managed logo and the brand rules live where Cornerpost's other
+     * email already lives, and duplicating them here would rebuild exactly
+     * the parallel implementation the V520 boundary removed.
+     *
+     * The call cannot fail the submission. It reports what it managed to
+     * send and throws nothing, because the request is already committed and
+     * an unsent email must never be the reason a customer's request is
+     * treated as though it did not happen. */
+    cpNotifyV520_(input, requestNumber, photoFolderUrl, result.idempotent, photosNeedAttention);
 
     return jsonResponse_({ success: true, requestNumber: requestNumber });
   } catch (error) {
@@ -170,6 +185,55 @@ function doPost(e) {
      * detail still reaches the execution log, where it belongs. */
     console.error(error);
     return jsonResponse_({ success: false, error: publicError_(error) });
+  }
+}
+
+
+/**
+ * Announces the request, and cannot fail it.
+ *
+ * THE RECORD IS ALREADY COMMITTED BY THE TIME THIS RUNS. The Service System
+ * itself reports rather than throws, but the CALL can still fail on its own
+ * -- an unavailable library, a spent mail quota, a timeout -- and that
+ * exception would otherwise land in doPost's catch and tell the customer
+ * their request did not go through. It did. A request that exists and was
+ * not announced is a problem the office can see and fix; a customer told to
+ * submit again creates the duplicate this whole boundary exists to prevent.
+ *
+ * So every failure here is logged and swallowed, deliberately.
+ * @private
+ */
+function cpNotifyV520_(input, requestNumber, photoFolderUrl, isReplay, photosNeedAttention) {
+  try {
+    const notified = CornerpostServiceSystem.sendWebsiteServiceRequestEmailsV520({
+      requestNumber: requestNumber,
+      firstName: input.firstName,
+      lastName: input.lastName,
+      phone: input.phone,
+      email: input.email,
+      preferredContact: input.preferredContact,
+      relationshipType: input.relationshipType,
+      serviceAddress1: input.serviceAddress1,
+      serviceAddress2: input.serviceAddress2,
+      serviceCity: input.serviceCity,
+      serviceState: input.serviceState,
+      serviceZip: input.serviceZip,
+      service: input.service,
+      preferredTime: input.preferredTime,
+      message: input.message,
+      photoFolderUrl: photoFolderUrl,
+      isReplay: isReplay === true,
+      photosNeedAttention: photosNeedAttention === true
+    });
+
+    if (notified && (notified.customer.error || notified.internal.error)) {
+      console.error('[Website Intake] ' + requestNumber + ' notification incomplete' +
+        '  customer=' + (notified.customer.error || (notified.customer.skipped ? 'skipped' : 'sent')) +
+        '  internal=' + (notified.internal.error || 'sent'));
+    }
+  } catch (error) {
+    console.error('[Website Intake] ' + requestNumber +
+      ' was created but could not be announced: ' + (error && error.message));
   }
 }
 
@@ -417,86 +481,6 @@ function saveRequestPhotos_(input) {
 }
 
 
-/**
- * The office copy.
- *
- * SR-YYYYMMDD-NNN is the operational reference and the only identifier here.
- * This used to print CustomerID, LocationID, RelationshipID and RequestID;
- * the Service System no longer hands those to a public caller, and the
- * office has never needed them -- the request number finds the record.
- */
-function sendInternalNotification_(input, requestNumber, photoFolderUrl, isReplay,
-  photosNeedAttention) {
-  const subject = (photosNeedAttention
-    ? 'Photos added to Website Service Request - '
-    : isReplay
-      ? 'Resubmitted Website Service Request - '
-      : 'New Website Service Request - ') + requestNumber;
-
-  const body = [
-    photosNeedAttention
-      ? 'A customer resubmitted this request WITH PHOTOS after it had already been ' +
-        'created. No new request was created, and the photo link below is NOT on the ' +
-        'request record -- please attach it by hand if it matters.'
-      : isReplay
-        ? 'A customer resubmitted a request that already exists. No new request was created.'
-        : 'New website service request',
-    '',
-    'Reference: ' + requestNumber,
-    'Customer: ' + input.firstName + ' ' + input.lastName,
-    'Relationship: ' + input.relationshipType,
-    'Phone: ' + input.phone,
-    'Email: ' + (input.email || 'Not provided'),
-    'Preferred contact: ' + input.preferredContact,
-    '',
-    'Service address:',
-    input.serviceAddress1,
-    input.serviceAddress2,
-    input.serviceCity + ', ' + input.serviceState + ' ' + input.serviceZip,
-    '',
-    'Requested service: ' + input.service,
-    'Preferred time: ' + (input.preferredTime || 'Not specified'),
-    '',
-    'Details:',
-    input.message,
-    photoFolderUrl ? 'Photos: ' + photoFolderUrl : ''
-  ].filter(function (line) { return line !== ''; }).join('\n');
-
-  MailApp.sendEmail({
-    to: SERVICE_EMAIL,
-    subject: subject,
-    body: body,
-    replyTo: input.email || undefined
-  });
-}
-
-
-function sendCustomerConfirmation_(input, requestNumber) {
-  if (!input.email) return;
-
-  const body = [
-    'Hello ' + input.firstName + ',',
-    '',
-    'We received your service request. Your reference number is ' + requestNumber + '.',
-    '',
-    'Requested service: ' + input.service,
-    'Service address: ' + input.serviceAddress1 + ', ' + input.serviceCity + ', ' +
-      input.serviceState + ' ' + input.serviceZip,
-    '',
-    'We will review the information and contact you about the appropriate next step.',
-    '',
-    'Cornerpost Plumbing',
-    'Honest Recommendations. Quality Craftsmanship.',
-    '308-225-3392'
-  ].join('\n');
-
-  MailApp.sendEmail({
-    to: input.email,
-    subject: 'Cornerpost Plumbing Service Request ' + requestNumber,
-    body: body,
-    replyTo: SERVICE_EMAIL
-  });
-}
 
 
 /** A message safe to show a member of the public. */
