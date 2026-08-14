@@ -4,9 +4,9 @@
     "libraries": [
       {
         "userSymbol": "CornerpostServiceSystem",
-        "version": "22",
+        "version": "23",
         "libraryId": "1_ThW8Adsx8izEePqLPgobkFs1B6GmdcqPatbjAU707KLpCZd7BjPT8Ft",
-        "developmentMode": true
+        "developmentMode": false
       }
     ]
   },
