@@ -1,6 +1,15 @@
 {
   "timeZone": "America/Denver",
-  "dependencies": {},
+  "dependencies": {
+    "libraries": [
+      {
+        "userSymbol": "CornerpostServiceSystem",
+        "version": "22",
+        "libraryId": "1_ThW8Adsx8izEePqLPgobkFs1B6GmdcqPatbjAU707KLpCZd7BjPT8Ft",
+        "developmentMode": true
+      }
+    ]
+  },
   "exceptionLogging": "STACKDRIVER",
   "runtimeVersion": "V8",
   "webapp": {
