@@ -113,7 +113,8 @@ function doPost(e) {
      * the lock that protects the database. The folder is derived from the
      * submission key, so a retry re-uses the folder the first attempt made
      * rather than leaving a second one behind. */
-    const photoFolderUrl = saveRequestPhotos_(input);
+    const photos = saveRequestPhotos_(input);
+    const photoFolderUrl = photos.url;
 
     const result = CornerpostServiceSystem.submitWebsiteServiceRequestV520(
       buildServiceSystemPayload_(input, photoFolderUrl)
@@ -138,7 +139,27 @@ function doPost(e) {
      * annoyance; silence after a request that really was received is not.
      * The office copy says plainly that it is a retry, so nobody reads two
      * emails as two jobs. */
-    sendInternalNotification_(input, requestNumber, photoFolderUrl, result.idempotent);
+    /* PHOTOS THAT ARRIVED FOR A REQUEST THAT ALREADY EXISTED.
+     *
+     * A replay returns the request the first attempt created, and the
+     * Service System does not rewrite that record -- correctly, since it
+     * owns it. So if the customer attached photos only on the retry, the
+     * folder now exists but the request row still points nowhere.
+     *
+     * The website must NOT reach into ServiceRequests to fix that; owning
+     * business records is precisely what it just gave up. What it can do is
+     * refuse to be silent: the office copy says so and carries the link, and
+     * the folder is named for the submission key that is stored on the row,
+     * so the two can always be matched by hand. */
+    const photosNeedAttention = result.idempotent === true && photos.created === true &&
+      photoFolderUrl !== '';
+    if (photosNeedAttention) {
+      console.log('[Website Intake] photos arrived on a replay of ' + requestNumber +
+        '; the request record cannot be updated from here');
+    }
+
+    sendInternalNotification_(input, requestNumber, photoFolderUrl, result.idempotent,
+      photosNeedAttention);
     sendCustomerConfirmation_(input, requestNumber);
 
     return jsonResponse_({ success: true, requestNumber: requestNumber });
@@ -337,24 +358,35 @@ function safePhotoName_(value) {
 /**
  * One logical submission, one photo folder.
  *
- * The folder is named for the submission key, so a retry finds the folder
- * its first attempt created instead of making a second one full of the same
- * pictures. That also repairs the awkward case where photos were stored and
- * the request then failed: the retry re-uses the folder, and the request
- * that finally succeeds points at it.
+ * THE FOLDER IS NAMED FOR THE SUBMISSION KEY, AND NOTHING ELSE. The key is
+ * immutable for one logical submission; the customer's name and address are
+ * mutable description. An identity built from mutable data is not an
+ * identity -- if somebody corrected a typo in their surname between a failed
+ * attempt and a retry, a name-based folder would no longer be found and the
+ * retry would store a second copy of the same pictures. The key cannot
+ * change, so the lookup cannot miss.
+ *
+ * It also makes the folder traceable in both directions with no index: the
+ * folder name is exactly the value stored in ServiceRequests.SubmissionKey
+ * for the request it belongs to, so either one finds the other by search.
+ *
+ * FIRST UPLOAD WINS. If the folder already exists this returns it untouched
+ * and stores nothing further: a retry is the same submission being sent
+ * again, not an edit of it. Photos added, removed or replaced on a retry are
+ * therefore NOT applied. That is deliberate -- the alternative is a
+ * synchronisation problem (same file name, different bytes: which is
+ * correct?) that this system has no reason to own.
  *
  * The lock is this project's own and guards only the find-or-create, so two
  * submissions arriving together cannot both decide the folder is missing.
  * It is not the Service System's lock and does not hold up the database.
  *
- * KNOWN EDGE: the name also carries the customer's name so the folder is
- * legible to the office. If somebody edited their name between a failure and
- * a retry, the retry would create a second folder. That is a rarer accident
- * than the one this replaces, and it costs an unreferenced folder rather
- * than a duplicate service request.
+ * @return {Object} {url, created} -- created is true only when THIS
+ *     execution made the folder, which the caller needs in order to notice
+ *     photos arriving for a request that already exists.
  */
 function saveRequestPhotos_(input) {
-  if (!input.photos.length) return '';
+  if (!input.photos.length) return { url: '', created: false };
 
   const folderId = clean_(PropertiesService.getScriptProperties().getProperty(PHOTO_FOLDER_ID_PROPERTY));
   if (!folderId || folderId.indexOf('PASTE_') === 0) {
@@ -362,7 +394,7 @@ function saveRequestPhotos_(input) {
   }
 
   const root = DriveApp.getFolderById(folderId);
-  const folderName = input.lastName + ', ' + input.firstName + ' - ' + input.submissionKey;
+  const folderName = input.submissionKey;
 
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
@@ -370,16 +402,15 @@ function saveRequestPhotos_(input) {
   try {
     const existing = root.getFoldersByName(folderName);
     if (existing.hasNext()) {
-      const found = existing.next();
-      console.log('[Website Intake] re-using existing photo folder for this submission key');
-      return found.getUrl();
+      console.log('[Website Intake] re-using the existing photo folder for this submission key');
+      return { url: existing.next().getUrl(), created: false };
     }
 
     const folder = root.createFolder(folderName);
     input.photos.forEach(function (photo) {
       folder.createFile(Utilities.newBlob(photo.bytes, photo.type, photo.name));
     });
-    return folder.getUrl();
+    return { url: folder.getUrl(), created: true };
   } finally {
     lock.releaseLock();
   }
@@ -394,14 +425,22 @@ function saveRequestPhotos_(input) {
  * the Service System no longer hands those to a public caller, and the
  * office has never needed them -- the request number finds the record.
  */
-function sendInternalNotification_(input, requestNumber, photoFolderUrl, isReplay) {
-  const subject = (isReplay ? 'Resubmitted Website Service Request - ' : 'New Website Service Request - ') +
-    requestNumber;
+function sendInternalNotification_(input, requestNumber, photoFolderUrl, isReplay,
+  photosNeedAttention) {
+  const subject = (photosNeedAttention
+    ? 'Photos added to Website Service Request - '
+    : isReplay
+      ? 'Resubmitted Website Service Request - '
+      : 'New Website Service Request - ') + requestNumber;
 
   const body = [
-    isReplay
-      ? 'A customer resubmitted a request that already exists. No new request was created.'
-      : 'New website service request',
+    photosNeedAttention
+      ? 'A customer resubmitted this request WITH PHOTOS after it had already been ' +
+        'created. No new request was created, and the photo link below is NOT on the ' +
+        'request record -- please attach it by hand if it matters.'
+      : isReplay
+        ? 'A customer resubmitted a request that already exists. No new request was created.'
+        : 'New website service request',
     '',
     'Reference: ' + requestNumber,
     'Customer: ' + input.firstName + ' ' + input.lastName,

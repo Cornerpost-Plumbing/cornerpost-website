@@ -340,6 +340,81 @@ check('the folder is named for the submission key', function () {
      fail this assertion, not die indexing an empty array. */
   return (w.created().folders[0] || '').indexOf(VALID_KEY) !== -1;
 });
+
+/* FOLDER IDENTITY IS THE SUBMISSION KEY, AND ONLY THE SUBMISSION KEY.
+ *
+ * The key is immutable for one logical submission; names and addresses are
+ * not. If identity depended on any of them, a customer who corrected a typo
+ * between a failure and a retry would get a second folder holding a second
+ * copy of the same photos. These assertions are the reason that cannot come
+ * back unnoticed. */
+check('...the folder name is EXACTLY the submission key, nothing else', function () {
+  const w = world({});
+  w.post(form({ photos: onePhoto }));
+  return w.created().folders[0] === VALID_KEY;
+}, String(world({}).created().folders[0]));
+check('...a changed FIRST NAME re-uses the same folder', function () {
+  const w = world({});
+  w.post(form({ photos: onePhoto }));
+  w.post(form({ photos: onePhoto, firstName: 'DIFFERENT' }));
+  return w.created().folders.length === 1 && w.created().files.length === 1;
+});
+check('...a changed LAST NAME re-uses the same folder', function () {
+  const w = world({});
+  w.post(form({ photos: onePhoto }));
+  w.post(form({ photos: onePhoto, lastName: 'CHANGED' }));
+  return w.created().folders.length === 1 && w.created().files.length === 1;
+});
+check('...a changed ADDRESS re-uses the same folder', function () {
+  const w = world({});
+  w.post(form({ photos: onePhoto }));
+  w.post(form({ photos: onePhoto, streetAddress: '999 OTHER ST', city: 'Gering', zip: '69341' }));
+  return w.created().folders.length === 1 && w.created().files.length === 1;
+});
+check('...every mutable field changing at once still re-uses it', function () {
+  const w = world({});
+  w.post(form({ photos: onePhoto }));
+  w.post(form({
+    photos: onePhoto, firstName: 'A', lastName: 'B', phone: '555-555-0100',
+    email: 'other@example.com', streetAddress: '2 ELSEWHERE AVE', city: 'Gering',
+    zip: '69341', service: 'Drain cleaning', message: 'Different words entirely.',
+    preferredTime: 'First Available'
+  }));
+  return w.created().folders.length === 1 && w.created().files.length === 1;
+});
+check('...and the folder name matches the key stored on the request row', function () {
+  /* The Service System writes SubmissionKey onto ServiceRequests. Naming the
+     folder identically is what lets the office match one to the other by
+     search alone, with no index and no extra column. */
+  const w = world({});
+  w.post(form({ photos: onePhoto }));
+  return w.created().folders[0] === call520(w, 0).submissionKey;
+});
+
+/* FIRST UPLOAD WINS -- stated as behaviour, not left to be discovered. */
+check('...photos ADDED on a retry are not applied to the existing folder', function () {
+  const twoPhotos = JSON.stringify([
+    { name: 'a.png', type: 'image/png', data: TINY_PNG_B64 },
+    { name: 'b.png', type: 'image/png', data: TINY_PNG_B64 }
+  ]);
+  const w = world({});
+  w.post(form({ photos: onePhoto }));
+  w.post(form({ photos: twoPhotos }));
+  return w.created().folders.length === 1 && w.created().files.length === 1;
+});
+check('...and photos arriving on a replay are reported to the office, not swallowed', function () {
+  /* The request already exists and the Service System will not rewrite it,
+     so the only honest thing the website can do is say so. */
+  const w = world({ v520: function (payload, n) {
+    return { success: true, idempotent: n > 1, request: { requestNumber: 'SR-20260813-001' } };
+  } });
+  w.post(form());                      /* creates the request, no photos */
+  w.post(form({ photos: onePhoto }));  /* replay, photos this time */
+  const office = w.sent().filter(function (m) { return m.to.indexOf('Cornerpost') !== -1; }).pop();
+  return office.subject.indexOf('Photos added') !== -1 &&
+    office.body.indexOf('NOT on the request record') !== -1 &&
+    office.body.indexOf('Photos: https://drive.example/') !== -1;
+});
 check('a replay re-uses the same folder and uploads nothing again', function () {
   const w = world({});
   w.post(form({ photos: onePhoto }));
