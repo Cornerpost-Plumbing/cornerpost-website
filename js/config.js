@@ -44,7 +44,17 @@ window.Cornerpost = {
     genericErrorMessage: "Something went wrong.",
     successTitle: "✓ Request Sent!",
     successMessage: "Thank you for contacting Cornerpost Plumbing.",
-    successEmailReminder: "Please check your email and Spam folder for confirmation and reference number."
+    successEmailReminder: "Please check your email and Spam folder for confirmation and reference number.",
+
+    /* WHEN THE PAGE CANNOT TELL WHETHER THE REQUEST WAS SAVED.
+     *
+     * A real customer was shown a JavaScript parser error after their
+     * request had already been created, and the page then invited them to
+     * send it again. The page genuinely does not know the outcome in that
+     * situation, so it must not claim one. It says what is true, asks them
+     * not to resend, and gives them a person to call. */
+    uncertainTitle: "We could not confirm your request",
+    uncertainMessage: "Your request may have been received, so please do not submit it again. If you receive a confirmation email, your request was received successfully. If you need immediate confirmation, please call us at 308-225-3392."
   },
 
   branding: {

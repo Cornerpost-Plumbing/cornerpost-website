@@ -1092,8 +1092,13 @@ function initServiceRequestForm() {
     }
 
     try {
+      /* Obtained and persisted BEFORE the POST, so an outcome we never get
+       * to read is still recoverable on the next attempt -- including
+       * after a reload. */
       if (!pendingSubmissionKey) {
-        pendingSubmissionKey = createSubmissionKey();
+        pendingSubmissionKey = obtainSubmissionKey();
+      } else {
+        storeSubmissionKey(pendingSubmissionKey);
       }
 
       const formData = new FormData(form);
@@ -1116,7 +1121,32 @@ function initServiceRequestForm() {
         body: formData
       });
 
-      const result = await response.json();
+      /* THREE OUTCOMES, NOT TWO.
+       *
+       * This used to call response.json() straight away, so anything that
+       * was not JSON -- an HTML interstitial, a Google error page, a
+       * truncated body -- threw a SyntaxError that was reported to the
+       * customer as a failed request. It was not a failed request: one real
+       * customer's service request had already been created, and their
+       * confirmation email had already been sent, when they were told
+       * something went wrong.
+       *
+       * So the response is now read as text first and parsed deliberately.
+       * A body we cannot understand means we do not know the outcome, which
+       * is a different thing from knowing it failed, and the customer is
+       * told that instead. See readSubmissionOutcome. */
+      const outcome = await readSubmissionOutcome(response);
+
+      if (outcome.state === "unknown") {
+        /* Key deliberately kept and still persisted: if the request did
+         * commit, the next attempt resolves to the same one. */
+        console.error("Cornerpost form: unreadable response", outcome.detail);
+        showUncertain(status);
+        markSubmissionUncertain(submitButton, config);
+        return;
+      }
+
+      const result = outcome.body;
 
       if (!result || result.success !== true) {
         /* Key kept: this is still the same logical request, and the customer
@@ -1129,7 +1159,10 @@ function initServiceRequestForm() {
         return;
       }
 
+      /* Confirmed success is the ONLY place the key is discarded, on both
+       * sides of the storage boundary. */
       pendingSubmissionKey = null;
+      clearStoredSubmissionKey();
       showSuccess(status, result.requestNumber);
       form.reset();
       updateBillingAddressVisibility();
@@ -1138,13 +1171,22 @@ function initServiceRequestForm() {
         fileList.innerHTML = "";
       }
     } catch (error) {
-      /* Network failure, or a response we could not read. We do NOT know
-       * whether the server saved the request, so the key is kept and a retry
-       * resolves to the same request rather than creating a second one. */
+      /* The POST itself failed, or something after it threw. We do NOT know
+       * whether the server saved the request, so the key is kept -- both in
+       * memory and in sessionStorage -- and a retry resolves to the same
+       * request rather than creating a second one.
+       *
+       * THE EXCEPTION IS NOT THE MESSAGE. This used to render error.message
+       * straight into the page, which is how a customer came to read
+       * "Unexpected token '<'". Technical detail belongs in the console. */
       console.error("Cornerpost form error:", error);
-      setStatus(status, error.message || buildErrorWithPhone(config?.forms?.genericErrorMessage), "error");
+      showUncertain(status);
+      markSubmissionUncertain(submitButton, config);
     } finally {
-      if (submitButton) {
+      /* Only restore the ordinary ready-to-send state when the outcome is
+       * actually known. An uncertain submission leaves the button disabled
+       * on purpose: re-arming it is an invitation to create a duplicate. */
+      if (submitButton && submitButton.dataset.cornerpostUncertain !== "true") {
         submitButton.disabled = false;
         submitButton.textContent = config?.forms?.requestButtonText || "Request Service";
       }
@@ -1178,6 +1220,167 @@ function createSubmissionKey() {
 
   const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
   return `WSR-${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+/**
+ * READS THE RESPONSE WITHOUT ASSUMING IT IS JSON.
+ *
+ * Returns one of three states, deliberately:
+ *
+ *   success   the server answered, and we understood it
+ *   rejected  the server answered, we understood it, and it said no
+ *   unknown   we could not establish what the server did
+ *
+ * "unknown" is the state that did not exist before, and it is the whole
+ * point. A POST has already been sent by the time this runs, so being
+ * unable to read the answer says nothing about whether the request was
+ * saved -- and must never be reported as though it did.
+ *
+ * NOT A CHECK FOR "<!DOCTYPE". Matching on the shape of one bad response
+ * would fix the symptom that happened to be observed and miss the next
+ * one. Anything that is not a body we can parse and recognise is unknown,
+ * whatever it looks like.
+ *
+ * An HTTP error status carrying a readable JSON body IS still an answer:
+ * the server told us what it did, and the customer deserves that message
+ * rather than a shrug.
+ */
+async function readSubmissionOutcome(response) {
+  let text;
+
+  try {
+    text = await response.text();
+  } catch (error) {
+    return { state: "unknown", detail: `body unreadable: ${error && error.message}` };
+  }
+
+  let body;
+  try {
+    body = JSON.parse(text);
+  } catch (error) {
+    return {
+      state: "unknown",
+      detail: `status ${response.status}, content-type ${response.headers?.get?.("content-type") || "unknown"}, body did not parse as JSON`
+    };
+  }
+
+  if (!body || typeof body !== "object" || typeof body.success !== "boolean") {
+    return { state: "unknown", detail: "response JSON did not match the expected contract" };
+  }
+
+  return { state: body.success === true ? "success" : "rejected", body };
+}
+
+/**
+ * The uncertain state: honest, calm, and pointing at a person.
+ *
+ * Deliberately does not claim the request failed, does not claim it
+ * succeeded, and does not invite another submission.
+ */
+function showUncertain(element) {
+  if (!element) return;
+
+  const forms = getConfig()?.forms || {};
+
+  /* Approved wording, rendered verbatim. It is one sentence-set on purpose:
+   * it says what is true, asks them not to resubmit, explains how they will
+   * know, and gives them a person to call -- in that order. Assembling it
+   * from fragments here would invite it drifting out of the copy that was
+   * actually approved, so the whole thing lives in configuration. */
+  const title = forms.uncertainTitle || "We could not confirm your request";
+  const message = forms.uncertainMessage || "";
+
+  setStatus(element, message ? `${title}. ${message}` : title, "error");
+}
+
+/**
+ * Locks the submit control after an uncertain outcome.
+ *
+ * The customer is told not to send it again, so the button must not sit
+ * there ready to be pressed. Reloading the page clears this -- and thanks
+ * to the persisted key, a submission after that reload is still recognised
+ * by the Service System as the same request rather than a new one.
+ */
+function markSubmissionUncertain(submitButton, config) {
+  if (!submitButton) return;
+
+  /* Left disabled with its ORDINARY label restored. The status panel
+   * carries the approved wording; putting different words on the button
+   * would be copy nobody approved, and a disabled control already says
+   * "not now".
+   *
+   * The label has to be put back explicitly: submit set it to "Sending..."
+   * and the finally block deliberately does not re-arm an uncertain button,
+   * so without this it sits there reading "Sending..." forever -- claiming
+   * work is still in flight when nothing is. Browser testing caught that;
+   * the unit tests were only checking the disabled state. */
+  submitButton.dataset.cornerpostUncertain = "true";
+  submitButton.disabled = true;
+  submitButton.textContent = config?.forms?.requestButtonText || "Request Service";
+  submitButton.setAttribute("aria-disabled", "true");
+}
+
+/* ------------------------------------------------------------------ *
+ * SUBMISSION KEY PERSISTENCE
+ *
+ * The key is what lets the Service System recognise a retry as the same
+ * request instead of a second one. It used to live only in a page
+ * variable, which meant a reload minted a new one -- and a reload is
+ * exactly what a customer does when a page tells them something went
+ * wrong. That turned an unreadable response into a duplicate service
+ * request, which is the failure the whole idempotency boundary exists to
+ * prevent.
+ *
+ * sessionStorage, not localStorage: the key should outlive a reload and
+ * nothing more. It is scoped to one tab, cleared when the browser session
+ * ends, and cannot leak between two people using the same device on
+ * different days.
+ *
+ * IT IS ONLY A KEY. The browser is not deciding anything about
+ * duplicates; V520 still owns that. This just stops the browser from
+ * destroying the evidence the server needs to make the decision.
+ * ------------------------------------------------------------------ */
+const SUBMISSION_KEY_STORAGE = "cornerpost.submissionKey";
+
+function readStoredSubmissionKey() {
+  try {
+    return window.sessionStorage.getItem(SUBMISSION_KEY_STORAGE) || null;
+  } catch (error) {
+    /* Private modes and locked-down browsers can throw on access. A
+     * missing key is survivable; a thrown exception during submit is not. */
+    return null;
+  }
+}
+
+function storeSubmissionKey(key) {
+  try {
+    window.sessionStorage.setItem(SUBMISSION_KEY_STORAGE, key);
+  } catch (error) {
+    /* Non-fatal: same-page retries still reuse the in-memory key. */
+  }
+}
+
+function clearStoredSubmissionKey() {
+  try {
+    window.sessionStorage.removeItem(SUBMISSION_KEY_STORAGE);
+  } catch (error) {
+    /* Non-fatal. */
+  }
+}
+
+/**
+ * The key for this submission, reused across a reload.
+ *
+ * Created and persisted BEFORE the POST, so a request that is committed
+ * but never confirmed can still be recognised on the next attempt.
+ */
+function obtainSubmissionKey() {
+  const stored = readStoredSubmissionKey();
+  if (stored) return stored;
+
+  const key = createSubmissionKey();
+  storeSubmissionKey(key);
+  return key;
 }
 
 function buildErrorWithPhone(message) {
