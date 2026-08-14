@@ -1054,6 +1054,28 @@ function initServiceRequestForm() {
 
   applyRequestedServiceSelection(form);
 
+  /**
+   * The key that makes one customer action one service request.
+   *
+   * Minted once for a logical submission and deliberately KEPT when a
+   * submission fails, because the failure that matters is the one where the
+   * server committed the request and the answer never came back. Retrying
+   * with the same key lets the Service System recognise the request it
+   * already created and return that number instead of creating a second one.
+   *
+   * Cleared only after a confirmed success, so the next thing the customer
+   * sends is treated as a genuinely new request.
+   *
+   * It lives in memory on purpose. Persisting it across a page reload would
+   * mean a customer who reloaded and typed a DIFFERENT request would resend
+   * the old key, and the server would answer with the old request while
+   * silently discarding the new details. A duplicate is the smaller problem.
+   *
+   * NOT A SECRET. It is an idempotency key. It proves nothing about who is
+   * calling and guards nothing.
+   */
+  let pendingSubmissionKey = null;
+
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
 
@@ -1070,7 +1092,12 @@ function initServiceRequestForm() {
     }
 
     try {
+      if (!pendingSubmissionKey) {
+        pendingSubmissionKey = createSubmissionKey();
+      }
+
       const formData = new FormData(form);
+      formData.set("submissionKey", pendingSubmissionKey);
 
       if (fileInput && fileInput.files.length > 0) {
         const photos = await filesToBase64(fileInput.files);
@@ -1079,13 +1106,31 @@ function initServiceRequestForm() {
 
       setStatus(status, "Sending your request...", "neutral");
 
-      await fetch(scriptURL, {
+      /* No mode:'no-cors'. An opaque response cannot be read, so this page
+       * used to congratulate the customer whatever happened -- including
+       * when nothing had been saved. The request stays a SIMPLE one
+       * (FormData, no custom headers) so the browser does not preflight it,
+       * which Apps Script would not answer. */
+      const response = await fetch(scriptURL, {
         method: "POST",
-        body: formData,
-        mode: "no-cors"
+        body: formData
       });
 
-      showSuccess(status);
+      const result = await response.json();
+
+      if (!result || result.success !== true) {
+        /* Key kept: this is still the same logical request, and the customer
+         * may correct a field and send it again. */
+        setStatus(
+          status,
+          result?.error || buildErrorWithPhone(config?.forms?.genericErrorMessage),
+          "error"
+        );
+        return;
+      }
+
+      pendingSubmissionKey = null;
+      showSuccess(status, result.requestNumber);
       form.reset();
       updateBillingAddressVisibility();
 
@@ -1093,6 +1138,9 @@ function initServiceRequestForm() {
         fileList.innerHTML = "";
       }
     } catch (error) {
+      /* Network failure, or a response we could not read. We do NOT know
+       * whether the server saved the request, so the key is kept and a retry
+       * resolves to the same request rather than creating a second one. */
       console.error("Cornerpost form error:", error);
       setStatus(status, error.message || buildErrorWithPhone(config?.forms?.genericErrorMessage), "error");
     } finally {
@@ -1102,6 +1150,34 @@ function initServiceRequestForm() {
       }
     }
   });
+}
+
+/**
+ * A submission key in the format the Service System requires:
+ * WSR- followed by a UUID.
+ */
+function createSubmissionKey() {
+  if (window.crypto && typeof window.crypto.randomUUID === "function") {
+    return `WSR-${window.crypto.randomUUID()}`;
+  }
+
+  /* Fallback for browsers without randomUUID. Uniqueness is the only
+   * property required of this value, and crypto-quality bytes are used
+   * where the browser offers them. */
+  const bytes = new Uint8Array(16);
+  if (window.crypto && typeof window.crypto.getRandomValues === "function") {
+    window.crypto.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < bytes.length; i += 1) {
+      bytes[i] = Math.floor(Math.random() * 256);
+    }
+  }
+
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+  return `WSR-${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
 function buildErrorWithPhone(message) {
@@ -1189,7 +1265,15 @@ function setStatus(element, message, type) {
   element.textContent = message;
 }
 
-function showSuccess(element) {
+/**
+ * Shown only after the server has confirmed the request was saved.
+ *
+ * The reference number now comes from the server response rather than being
+ * promised by email alone, because the page can finally read what the server
+ * said. The email reminder is still shown when no number came back, so the
+ * customer is never left with nothing to quote.
+ */
+function showSuccess(element, requestNumber) {
   if (!element) return;
 
   const config = getConfig();
@@ -1198,11 +1282,15 @@ function showSuccess(element) {
   const phone = business.phone || {};
   const urgentInstruction = business.availability?.urgentInstruction || "If your plumbing issue is urgent, please call immediately:";
 
+  const reference = requestNumber
+    ? `<p>Your reference number is <strong>${escapeHtml(requestNumber)}</strong>.</p>`
+    : `<p>${escapeHtml(forms.successEmailReminder || "Please check your email for confirmation and reference number.")}</p>`;
+
   element.className = "form-status form-status-card";
   element.innerHTML = `
     <h3>${escapeHtml(forms.successTitle || "✓ Request Sent!")}</h3>
     <p>${escapeHtml(forms.successMessage || "Thank you for contacting us.")}</p>
-    <p>${escapeHtml(forms.successEmailReminder || "Please check your email for confirmation and reference number.")}</p>
+    ${reference}
     <p><strong>${escapeHtml(urgentInstruction)}</strong></p>
     <p><strong><a href="tel:${escapeAttribute(phone.digits || "")}">${escapeHtml(phone.display || "Call")}</a></strong></p>
   `;
