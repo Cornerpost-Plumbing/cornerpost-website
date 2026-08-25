@@ -1,17 +1,11 @@
 {
   "timeZone": "America/Denver",
-  "dependencies": {
-    "libraries": [
-      {
-        "userSymbol": "CornerpostServiceSystem",
-        "version": "33",
-        "libraryId": "1_ThW8Adsx8izEePqLPgobkFs1B6GmdcqPatbjAU707KLpCZd7BjPT8Ft",
-        "developmentMode": false
-      }
-    ]
-  },
   "exceptionLogging": "STACKDRIVER",
   "runtimeVersion": "V8",
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/business.manage",
+    "https://www.googleapis.com/auth/script.external_request"
+  ],
   "webapp": {
     "executeAs": "USER_DEPLOYING",
     "access": "ANYONE_ANONYMOUS"

@@ -28,7 +28,7 @@ window.CornerpostServices = [
     requestButton: "Request Drain Cleaning",
     shortDescription: "Slow drains, clogs, and main line backups diagnosed before repairs.",
     heading: "Slow drains and backups need more than guesswork.",
-    image: "images/placeholders/comingsoon.jpg",
+    image: "images/services/2026-08-25_drain-cleaning.jpg",
     imageAlt: "Drain cleaning equipment and plumbing drain service",
     description: [
       "Drain cleaning is used for clogged sinks, tubs, showers, floor drains, laundry drains, and main sewer backups.",
@@ -154,7 +154,7 @@ window.CornerpostServices = [
     requestButton: "Call for Emergency Service",
     shortDescription: "Urgent plumbing help when the problem cannot wait.",
     heading: "When the issue cannot wait, call directly.",
-    image: "images/placeholders/comingsoon.jpg",
+    image: "images/services/2026-08-25_emergency-service.jpg",
     imageAlt: "Emergency plumbing service",
     isEmergency: true,
     description: [

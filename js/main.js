@@ -1,12 +1,18 @@
 document.addEventListener("DOMContentLoaded", () => {
   renderSiteChrome();
   renderServiceContent();
-  renderReviewContent();
   applySiteConfig();
   applyStructuredData();
   initMobileNavigation();
   initAnchorScrollOffset();
   initServiceRequestForm();
+
+  const reviewsReady = window.CornerpostReviewsReady;
+  if (reviewsReady && typeof reviewsReady.then === "function") {
+    reviewsReady.finally(() => renderReviewContent());
+  } else {
+    renderReviewContent();
+  }
 });
 
 function getConfig() {
@@ -669,7 +675,7 @@ function buildReviewCard(review, fullWidth = false) {
         <p class="review-stars" aria-label="${rating} out of 5 stars">${stars}</p>
         ${dateText ? `<time datetime="${escapeAttribute(review.date || "")}">${escapeHtml(dateText)}</time>` : ""}
       </div>
-      <blockquote>${escapeHtml(review.text || "")}</blockquote>
+      ${review.text ? `<blockquote>${escapeHtml(review.text)}</blockquote>` : ""}
       <footer>
         <strong>${escapeHtml(review.author || "Customer")}</strong>
         <span>${escapeHtml(source)}</span>

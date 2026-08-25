@@ -65,6 +65,7 @@ window.Cornerpost = {
   reviews: {
     profileUrl: "",
     leaveReviewUrl: "https://g.page/r/CTrjvPrCKrGTEBM/review",
+    feedUrl: "PASTE_GOOGLE_REVIEW_FEED_WEB_APP_URL_HERE",
     sourceName: "Google",
     homeHeading: "Recent Customer Reviews",
     homeIntro: "The newest customer feedback will appear here as Cornerpost begins serving the community.",
