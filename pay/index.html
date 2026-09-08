@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Pay Invoice | Cornerpost Plumbing</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="payment-header" aria-label="Cornerpost Plumbing">
+    <div class="payment-header__inner">
+      <img
+        class="payment-header__logo"
+        src="../images/branding/cornerpost-logo-horizontal-Khaki.png"
+        alt="Cornerpost Plumbing"
+      >
+    </div>
+  </header>
+
+  <main class="payment-main">
+    <section class="payment-shell" aria-labelledby="payment-title">
+      <div class="payment-intro">
+        <h1 id="payment-title">Pay Invoice <span id="invoice-title-number">1035</span></h1>
+        <p>Please confirm the details below before paying.</p>
+      </div>
+
+      <section class="invoice-card" aria-label="Invoice details">
+        <div class="eyebrow">Invoice</div>
+        <dl class="invoice-details">
+          <div class="invoice-details__row">
+            <dt>Invoice Number</dt>
+            <dd id="invoice-number">1035</dd>
+          </div>
+          <div class="invoice-details__row">
+            <dt>Invoice Date</dt>
+            <dd id="invoice-date">August 29, 2026</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="balance-panel" aria-label="Balance due">
+        <span>Balance Due</span>
+        <strong id="balance-due">$174.00</strong>
+      </section>
+
+      <section class="payment-options" aria-labelledby="payment-options-title">
+        <p id="payment-options-title" class="payment-options__help">
+          Choose how you would like to pay. You will be asked to confirm before anything is charged.
+        </p>
+
+        <div class="payment-actions">
+          <button class="payment-button" type="button" data-payment-method="venmo">Venmo</button>
+          <button class="payment-button" type="button" data-payment-method="paypal">PayPal</button>
+          <button class="payment-button" type="button" data-payment-method="google-pay">Google Pay</button>
+          <button class="payment-button" type="button" data-payment-method="apple-pay" hidden>Apple Pay</button>
+        </div>
+
+        <aside class="questions-panel">
+          Questions about this invoice? Please contact us before paying and we will be glad to go through it with you.
+        </aside>
+      </section>
+
+      <footer class="payment-footer">
+        <span>Cornerpost Plumbing</span>
+        <span aria-hidden="true">·</span>
+        <a href="tel:+13082253392">308-225-3392</a>
+        <span aria-hidden="true">·</span>
+        <a href="mailto:service@cornerpostplumbing.com">service@cornerpostplumbing.com</a>
+      </footer>
+    </section>
+  </main>
+</body>
+</html>
