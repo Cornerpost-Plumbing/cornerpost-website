@@ -56,6 +56,27 @@
   /** Set once a payment is known to have been recorded. */
   let settled = false;
 
+  /**
+   * TEMPORARY DIAGNOSTICS -- added 9 Sep 2026 to find why the PayPal
+   * window opened and closed immediately on this host while Venmo and
+   * Google Pay behaved. OFF unless the URL carries &diag=1, so a customer
+   * never sees any of it.
+   *
+   * IT LOGS LIFECYCLE, NEVER CONTENT. No token, no order id, no capture
+   * id, no client id, no amount, no customer data -- only which step
+   * happened and in what order.
+   *
+   * TO REMOVE: delete this block, the DIAG() calls, and the diag test in
+   * tests/payment-page-harness.js. Nothing else depends on it.
+   */
+  const DIAGNOSTICS =
+    new URLSearchParams(window.location.search).get("diag") === "1";
+
+  function DIAG(event) {
+    if (!DIAGNOSTICS) return;
+    console.log("[cp-pay] " + event);
+  }
+
   /** The most recent server answer, for the sheet that must show a total. */
   let lastOrder = null;
 
@@ -324,7 +345,11 @@
         pageType: "checkout"
       });
 
+      DIAG("sdk instance created");
       const methods = await sdk.findEligibleMethods({ currencyCode: "USD" });
+      ["paypal", "venmo", "googlepay"].forEach((key) => {
+        DIAG("eligible " + key + "=" + eligible(methods, key));
+      });
       await renderMethods(sdk, methods, checkout.googlePayEnvironment);
     } catch (error) {
       checkoutUnavailable(
@@ -402,6 +427,7 @@
   function sessionOptions() {
     return {
       onApprove: (data) => {
+        DIAG("onApprove");
         showStatus(
           "Confirming your payment with the bank. Please do not close this page.",
           "info"
@@ -409,6 +435,7 @@
         return settle(data && data.orderId);
       },
       onCancel: () => {
+        DIAG("onCancel");
         /* The buyer backed out. Nothing moved, and saying so is the
            difference between a calm page and an alarming one. It is not
            an error and needs no office intervention. */
@@ -419,7 +446,8 @@
           );
         }
       },
-      onError: () => {
+      onError: (error) => {
+        DIAG("onError -- " + (error && error.message));
         if (!settled) refuse("unverified");
       }
     };
@@ -432,6 +460,7 @@
    * in this request, and the server would not read one if there were.
    */
   async function createOrder() {
+    DIAG("createOrder requested");
     const answer = await postPaymentAction({
       action: "createOrder",
       token: getPaymentToken()
@@ -446,10 +475,12 @@
     if (!result || result.ok !== true) {
       /* The server decided. A balance that moved, an invoice that is no
          longer payable -- none of that is reconciled here. */
+      DIAG("createOrder refused: " + ((result && result.reason) || "failed"));
       refuse((result && result.reason) || "failed", result && result.diagnostic);
       throw new Error("createOrder");
     }
 
+    DIAG("createOrder ok");
     hideStatus();
     lastOrder = result;
     return { orderId: result.orderId };
@@ -542,12 +573,18 @@
     setBusy(true);
     showStatus("Opening checkout. One moment.", "info");
 
+    DIAG(method + ": session created");
     const session = makeSession();
     /* start() is given a PROMISE of an order id. If the server refuses,
        createOrder rejects and the checkout never opens -- so a refusal
        cannot become a half-open payment window. */
+    DIAG(method + ": start called");
     Promise.resolve(session.start({ presentationMode: "auto" }, createOrder()))
-      .catch(() => { /* already reported by createOrder / onError */ })
+      .then(() => { DIAG(method + ": start resolved"); })
+      .catch((error) => {
+        /* already reported by createOrder / onError */
+        DIAG(method + ": start rejected -- " + (error && error.message));
+      })
       .then(() => { setBusy(false); });
   }
 
@@ -658,15 +695,57 @@
    * same session and fires the same callbacks, so a returning customer
    * settles the order they already approved instead of starting a second.
    */
+  /**
+   * IS THIS PAGE LOAD A RETURN FROM A REDIRECT?
+   *
+   * A first visit carries exactly one parameter -- the invoice token. A
+   * buyer coming back from a redirect checkout arrives with more, because
+   * that is how a redirect flow hands control back. Asking the URL costs
+   * nothing and creates nothing.
+   *
+   * The parameter NAMES are deliberately not hard-coded: they belong to
+   * the SDK and inventing a list would be guessing at somebody else's
+   * contract. "More than just the token" is the honest test.
+   */
+  function looksLikeReturn() {
+    const params = new URLSearchParams(window.location.search);
+    let count = 0;
+    params.forEach((value, key) => { if (key !== "t") count += 1; });
+    return count > 0;
+  }
+
   function resumeIfReturning(sdk) {
+    /**
+     * NO SESSION IS CREATED ON AN ORDINARY FIRST LOAD (9 Sep 2026).
+     *
+     * This used to build a PayPal session on every page load purely to
+     * ask it whether the buyer was returning, and then abandon it. That
+     * made PayPal the ONLY method for which two sessions existed -- Venmo
+     * creates one per click and Google Pay one for the page -- and PayPal
+     * was the only method whose window opened and closed immediately on
+     * this host.
+     *
+     * The same code ran on the Apps Script host without visible harm,
+     * which is consistent with that page being inside a sandboxed iframe
+     * where presentationMode "auto" cannot use a popup and falls back to
+     * a modal. A latent fault that one host happened to mask is still a
+     * fault, and an abandoned session is wrong on its own terms.
+     */
+    if (!looksLikeReturn()) {
+      DIAG("resume check skipped: first load, no session created");
+      return;
+    }
     try {
       const session = sdk.createPayPalOneTimePaymentSession(sessionOptions());
-      if (session.hasReturned && session.hasReturned()) {
+      const returning = !!(session.hasReturned && session.hasReturned());
+      DIAG("resume check ran, hasReturned=" + returning);
+      if (returning) {
         showStatus("Confirming your payment. Please wait.", "info");
         session.resume();
       }
     } catch (error) {
       /* Nothing to resume is not a problem worth showing anybody. */
+      DIAG("resume check threw");
     }
   }
 

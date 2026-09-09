@@ -91,7 +91,7 @@ function page(o) {
   const requests = [];
   const sessions = [];
   const scripts = [];
-  const world = { requests, sessions, scripts };
+  const world = { requests, sessions, scripts, logs: [] };
 
   const buttons = {};
   ['venmo', 'paypal', 'google-pay', 'apple-pay'].forEach(function (m) {
@@ -264,7 +264,11 @@ function page(o) {
   }
 
   const ctx = {
-    console: { log() {}, warn() {}, error() {} },
+    console: {
+      log(m) { world.logs.push(String(m)); },
+      warn(m) { world.logs.push(String(m)); },
+      error(m) { world.logs.push(String(m)); }
+    },
     String, Number, Object, Array, Boolean, JSON, Math, Date, Error, RegExp,
     Promise, setTimeout, URLSearchParams,
     document: doc,
@@ -680,6 +684,85 @@ checkAsync('G3  GOOGLE IS TOLD SUCCESS ONLY AFTER CORNERPOST HAS ANSWERED',
     return good.googlePayResult.transactionState === 'SUCCESS' &&
       bad.googlePayResult.transactionState === 'ERROR';
   });
+
+/* ── The PayPal popup that closed itself ─────────────────────────────── */
+section('H  One session per method, and none created on a first load');
+
+/**
+ * THE FIELD FAILURE OF 9 SEPTEMBER 2026.
+ *
+ * On the Cornerpost-hosted page, Venmo and Google Pay opened correctly and
+ * PayPal's window opened and closed immediately. The one structural thing
+ * that made PayPal different: the page built a PayPal session on EVERY
+ * load, purely to ask whether the buyer was returning, and then abandoned
+ * it -- so a PayPal click created a SECOND session for the same component.
+ * Venmo creates one per click; Google Pay one for the page.
+ *
+ * The same code ran on the Apps Script host without visible harm, which is
+ * consistent with that page sitting inside a sandboxed iframe where
+ * presentationMode "auto" cannot use a popup and falls back to a modal. A
+ * latent fault that one host happened to mask is still a fault, and an
+ * abandoned session is wrong on its own terms.
+ */
+
+checkAsync('H1  AN ORDINARY FIRST LOAD CREATES NO PAYPAL SESSION AT ALL. ' +
+  'Nothing is built until the customer asks for it.', async () => {
+  const p = page({});
+  await settle(); await settle(); await settle();
+  return p.sessions.filter(function (s) { return s.kind === 'paypal'; })
+    .length === 0;
+});
+
+checkAsync('H2  ...and pressing PayPal then creates EXACTLY ONE -- the ' +
+  'duplicate that made PayPal the odd one out is gone', async () => {
+  const p = page({ autoApprove: false });
+  await settle(); await settle(); await settle();
+  p.press('paypal');
+  await settle(); await settle();
+  return p.sessions.filter(function (s) { return s.kind === 'paypal'; })
+    .length === 1;
+});
+
+checkAsync('H3  EACH METHOD CREATES ONE SESSION AND ONLY ITS OWN', async () => {
+  const p = page({ autoApprove: false });
+  await settle(); await settle(); await settle();
+  p.press('venmo');
+  await settle(); await settle();
+  const kinds = p.sessions.map(function (s) { return s.kind; }).sort();
+  /* Google Pay builds its one session while deciding whether the device
+     can pay at all, which is the only way to ask. */
+  return kinds.join(',') === 'googlepay,venmo';
+});
+
+checkAsync('H4  A RETURN-LOOKING URL STILL ASKS. Removing the session from ' +
+  'a first load must not remove resume for the buyer it exists for.',
+  async () => {
+    const p = page({ search: '?t=' + TOKEN + '&token=EC-1&PayerID=ABC' });
+    await settle(); await settle(); await settle();
+    return p.sessions.filter(function (s) { return s.kind === 'paypal'; })
+      .length === 1;
+  });
+
+checkAsync('H5  DIAGNOSTICS ARE SILENT unless the URL asks for them, so a ' +
+  'customer never sees any of it', async () => {
+  const quiet = page({});
+  await settle(); await settle(); await settle();
+  const loud = page({ search: '?t=' + TOKEN + '&diag=1' });
+  await settle(); await settle(); await settle();
+  return quiet.logs.length === 0 && loud.logs.length > 0;
+});
+
+checkAsync('H6  ...and when they do speak they name STEPS, never content -- ' +
+  'no token, no order id, no client id, no amount', async () => {
+  const p = page({ search: '?t=' + TOKEN + '&diag=1', autoApprove: false });
+  await settle(); await settle(); await settle();
+  p.press('paypal');
+  await settle(); await settle();
+  const all = p.logs.join(' | ');
+  return all.length > 0 && all.indexOf(TOKEN) === -1 &&
+    all.indexOf('ORD-1') === -1 &&
+    all.indexOf('sandbox-client-id') === -1 && all.indexOf('174') === -1;
+});
 
 /* ── Runner ──────────────────────────────────────────────────────────── */
 
