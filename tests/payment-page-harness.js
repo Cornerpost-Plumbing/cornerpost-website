@@ -743,25 +743,38 @@ checkAsync('H4  A RETURN-LOOKING URL STILL ASKS. Removing the session from ' +
       .length === 1;
   });
 
-checkAsync('H5  DIAGNOSTICS ARE SILENT unless the URL asks for them, so a ' +
-  'customer never sees any of it', async () => {
-  const quiet = page({});
-  await settle(); await settle(); await settle();
-  const loud = page({ search: '?t=' + TOKEN + '&diag=1' });
-  await settle(); await settle(); await settle();
-  return quiet.logs.length === 0 && loud.logs.length > 0;
-});
+/**
+ * H5 and H6 USED TO TEST THE TEMPORARY &diag=1 INSTRUMENTATION.
+ *
+ * That instrumentation did its job -- the field retest showed the PayPal
+ * session opening and staying open -- and has been removed. The two
+ * SAFETY properties it happened to prove are permanent, so they stayed
+ * and were rewritten to assert them directly rather than being deleted
+ * along with the thing that first exercised them.
+ */
 
-checkAsync('H6  ...and when they do speak they name STEPS, never content -- ' +
-  'no token, no order id, no client id, no amount', async () => {
-  const p = page({ search: '?t=' + TOKEN + '&diag=1', autoApprove: false });
+checkAsync('H5  THE PAGE IS SILENT IN NORMAL OPERATION. Somebody paying a ' +
+  'plumbing bill should find nothing in a console.', async () => {
+  const p = page({ autoApprove: false });
   await settle(); await settle(); await settle();
   p.press('paypal');
   await settle(); await settle();
+  return p.logs.length === 0;
+});
+
+checkAsync('H6  ...and a REFUSAL still leaves an operator something to read, ' +
+  'naming the step but never content -- no token, no order id, no client ' +
+  'id, no amount -- and none of it reaches the customer', async () => {
+  const p = page({ createOrder: { ok: false, reason: 'failed',
+    diagnostic: 'PAYPAL_AUTH_401' } });
+  await settle(); await settle(); await settle();
+  await p.press('paypal');
+  await settle();
   const all = p.logs.join(' | ');
-  return all.length > 0 && all.indexOf(TOKEN) === -1 &&
-    all.indexOf('ORD-1') === -1 &&
-    all.indexOf('sandbox-client-id') === -1 && all.indexOf('174') === -1;
+  return all.indexOf('PAYPAL_AUTH_401') !== -1 &&
+    all.indexOf(TOKEN) === -1 && all.indexOf('ORD-1') === -1 &&
+    all.indexOf('sandbox-client-id') === -1 && all.indexOf('174') === -1 &&
+    p.status().textContent.indexOf('PAYPAL_AUTH_401') === -1;
 });
 
 /* ── Runner ──────────────────────────────────────────────────────────── */
