@@ -279,3 +279,30 @@ a {
     transition: none;
   }
 }
+
+
+.payment-status {
+  margin: 0 0 18px;
+  padding: 14px 16px;
+  color: var(--color-charcoal);
+  background: var(--color-paper);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.payment-status[data-kind="success"],
+.payment-status[data-kind="notice"] {
+  border-left: 4px solid var(--color-brass);
+}
+
+.payment-status[data-kind="error"] {
+  border-left: 4px solid var(--color-post-dark);
+}
+
+.payment-button:disabled {
+  cursor: default;
+  opacity: 0.55;
+  transform: none;
+}

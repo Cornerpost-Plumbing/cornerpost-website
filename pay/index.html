@@ -21,27 +21,32 @@
   <main class="payment-main">
     <section class="payment-shell" aria-labelledby="payment-title">
       <div class="payment-intro">
-        <h1 id="payment-title">Pay Invoice <span id="invoice-title-number">1035</span></h1>
+        <h1 id="payment-title">Pay Invoice <span id="invoice-title-number"></span></h1>
         <p>Please confirm the details below before paying.</p>
       </div>
 
+      <div id="payment-status" class="payment-status" role="status" aria-live="polite">
+        Loading invoice details…
+      </div>
+
+      <div id="payment-content" hidden>
       <section class="invoice-card" aria-label="Invoice details">
         <div class="eyebrow">Invoice</div>
         <dl class="invoice-details">
           <div class="invoice-details__row">
             <dt>Invoice Number</dt>
-            <dd id="invoice-number">1035</dd>
+            <dd id="invoice-number" aria-live="polite">—</dd>
           </div>
           <div class="invoice-details__row">
             <dt>Invoice Date</dt>
-            <dd id="invoice-date">August 29, 2026</dd>
+            <dd id="invoice-date">—</dd>
           </div>
         </dl>
       </section>
 
       <section class="balance-panel" aria-label="Balance due">
         <span>Balance Due</span>
-        <strong id="balance-due">$174.00</strong>
+        <strong id="balance-due">—</strong>
       </section>
 
       <section class="payment-options" aria-labelledby="payment-options-title">
@@ -61,14 +66,17 @@
         </aside>
       </section>
 
+      </div>
+
       <footer class="payment-footer">
-        <span>Cornerpost Plumbing</span>
-        <span aria-hidden="true">·</span>
-        <a href="tel:+13082253392">308-225-3392</a>
-        <span aria-hidden="true">·</span>
-        <a href="mailto:service@cornerpostplumbing.com">service@cornerpostplumbing.com</a>
+        <span id="business-name">Cornerpost Plumbing</span>
+        <span class="payment-footer__separator" aria-hidden="true">·</span>
+        <a id="business-phone" href="tel:+13082253392">308-225-3392</a>
+        <span class="payment-footer__separator" aria-hidden="true">·</span>
+        <a id="business-email" href="mailto:service@cornerpostplumbing.com">service@cornerpostplumbing.com</a>
       </footer>
     </section>
   </main>
+  <script src="payment.js" defer></script>
 </body>
 </html>
