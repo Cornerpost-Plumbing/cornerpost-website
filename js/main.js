@@ -108,6 +108,19 @@ function buildNavigationItemHtml(item) {
     `;
   }
 
+  if (Array.isArray(item.children) && item.children.length) {
+    const dropdown = item.children
+      .map((child) => `<a href="${escapeAttribute(resolveNavigationHref(child.href, currentPage))}"${child.page === currentPage ? ' class="is-active"' : ""}>${escapeHtml(child.title)}</a>`)
+      .join("");
+
+    return `
+      <div class="nav-item has-dropdown">
+        <a href="${escapeAttribute(href)}" class="${linkClass}">${escapeHtml(item.title)}</a>
+        <div class="dropdown-menu" aria-label="${escapeAttribute(item.title)} submenu">${dropdown}</div>
+      </div>
+    `;
+  }
+
   return `<a href="${escapeAttribute(href)}" class="${linkClass}">${escapeHtml(item.title)}</a>`;
 }
 
@@ -316,7 +329,7 @@ function applyStructuredData() {
   const graph = [];
 
   const sameAs = Object.values(config.links || {}).filter((url) => isAbsoluteHttpUrl(url));
-  const pageReferences = ["home", "services", "about", "reviews", "contact"].map((page) => ({
+  const pageReferences = ["home", "services", "about", "reviews", "contact", "warranty"].map((page) => ({
     "@id": `${buildPageUrl(siteUrl, page)}#webpage`
   }));
 
@@ -530,7 +543,8 @@ function buildPageUrl(siteUrl, pageName) {
     services: "/services.html",
     contact: "/contact.html",
     about: "/about.html",
-    reviews: "/reviews.html"
+    reviews: "/reviews.html",
+    warranty: "/warranty.html"
   };
 
   return `${siteUrl}${pagePaths[pageName] || "/"}`;

@@ -2153,3 +2153,326 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 }
+
+/* Warranty page */
+.warranty-page-hero {
+  padding-bottom: 4.75rem;
+}
+
+.warranty-hero-inner {
+  max-width: 780px;
+}
+
+.warranty-reading-width {
+  max-width: 860px;
+}
+
+.warranty-contents-section {
+  padding-top: 3.75rem;
+  padding-bottom: 3.75rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.warranty-contents-heading {
+  margin-bottom: 1.65rem;
+}
+
+.warranty-contents-heading h2 {
+  margin-bottom: 0;
+}
+
+.warranty-toc {
+  padding: 1.6rem 1.75rem;
+  background: var(--color-paper);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.warranty-toc > ol {
+  columns: 2;
+  column-gap: 3rem;
+  margin: 0;
+  padding-left: 1.65rem;
+}
+
+.warranty-toc > ol > li {
+  break-inside: avoid;
+  margin: 0 0 0.72rem;
+  padding-left: 0.25rem;
+}
+
+.warranty-toc li::marker {
+  color: var(--color-brass);
+  font-weight: 800;
+}
+
+.warranty-toc a {
+  color: var(--color-post);
+  font-weight: 700;
+  text-decoration-color: rgba(166, 132, 71, 0.52);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.warranty-toc a:hover,
+.warranty-toc a:focus {
+  color: var(--color-brass);
+}
+
+.warranty-toc ul {
+  margin: 0.5rem 0 0.2rem;
+  padding-left: 1.15rem;
+  color: var(--color-muted);
+  font-size: 0.93rem;
+}
+
+.warranty-toc ul li {
+  margin-bottom: 0.35rem;
+}
+
+.warranty-toc ul a {
+  font-weight: 600;
+}
+
+.warranty-intro-section {
+  padding-top: 3.75rem;
+  padding-bottom: 3.75rem;
+}
+
+.warranty-intro-copy {
+  font-size: 1.02rem;
+}
+
+.warranty-intro-copy .lead-text {
+  margin-bottom: 1.2rem;
+  color: var(--color-post);
+  font-family: var(--font-heading);
+  font-size: clamp(1.45rem, 2.4vw, 1.9rem);
+  line-height: 1.35;
+}
+
+.warranty-policy-section {
+  scroll-margin-top: 92px;
+  border-top: 1px solid var(--color-border);
+}
+
+.warranty-policy-section h2 {
+  max-width: 760px;
+  margin-bottom: 1.45rem;
+}
+
+.warranty-policy-section h3 {
+  margin-top: 2rem;
+  color: var(--color-post);
+  font-family: var(--font-heading);
+  font-size: 1.32rem;
+  line-height: 1.25;
+}
+
+.warranty-policy-section p {
+  max-width: 800px;
+}
+
+.warranty-term-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 1.8rem 0 2.3rem;
+}
+
+.warranty-term-card {
+  padding: 1.35rem 1.4rem 1.2rem;
+  background: var(--color-ivory);
+  border: 1px solid var(--color-border);
+  border-top: 3px solid var(--color-brass);
+  border-radius: 6px;
+}
+
+.warranty-term-label {
+  display: block;
+  margin-bottom: 0.45rem;
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.warranty-term-card strong {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: var(--color-post);
+  font-family: var(--font-heading);
+  font-size: 1.6rem;
+  line-height: 1.2;
+}
+
+.warranty-term-card p {
+  margin-bottom: 0;
+  color: var(--color-muted);
+  font-size: 0.94rem;
+}
+
+.warranty-subsection {
+  scroll-margin-top: 92px;
+  padding: 1.6rem 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.warranty-subsection:first-of-type {
+  margin-top: 1.5rem;
+}
+
+.warranty-subsection h3 {
+  margin-top: 0;
+}
+
+.warranty-outcome-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 1.75rem 0 2.2rem;
+}
+
+.warranty-outcome-list article {
+  padding: 1.15rem 1.25rem;
+  border-left: 3px solid var(--color-brass);
+  background: var(--color-ivory);
+}
+
+.warranty-outcome-list h3 {
+  margin-top: 0;
+  margin-bottom: 0.45rem;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.warranty-outcome-list p {
+  margin-bottom: 0;
+  color: var(--color-muted);
+  font-size: 0.94rem;
+}
+
+.warranty-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 1.55rem;
+  color: var(--color-sage);
+  font-size: 0.88rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.warranty-back-link:hover,
+.warranty-back-link:focus {
+  color: var(--color-brass);
+}
+
+.warranty-contact-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  margin-top: 1.65rem;
+}
+
+.warranty-contact-actions .button-secondary {
+  background: transparent;
+}
+
+.warranty-standard-section {
+  scroll-margin-top: 92px;
+  padding: 5rem 0;
+  color: var(--color-paper);
+  background: var(--color-post-dark);
+}
+
+.warranty-standard-section h2 {
+  color: var(--color-paper);
+}
+
+.warranty-standard-section > .container > p:not(.eyebrow),
+.warranty-legal-note {
+  color: rgba(255, 255, 255, 0.76);
+}
+
+.warranty-standard-statements {
+  margin: 2rem 0;
+  padding: 1.3rem 0 0.3rem 1.4rem;
+  border-left: 3px solid var(--color-brass);
+}
+
+.warranty-standard-statements p {
+  margin-bottom: 1rem;
+  color: var(--color-paper);
+  font-family: var(--font-heading);
+  font-size: 1.3rem;
+  line-height: 1.35;
+}
+
+.warranty-legal-note {
+  font-size: 0.88rem;
+}
+
+.warranty-back-link-dark {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.footer-policy-links {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin: 0;
+}
+
+.footer-policy-links a {
+  color: rgba(255, 255, 255, 0.78);
+  text-decoration-color: rgba(166, 132, 71, 0.7);
+  text-underline-offset: 3px;
+}
+
+.footer-policy-links a:hover,
+.footer-policy-links a:focus {
+  color: var(--color-paper);
+}
+
+@media (max-width: 760px) {
+  .warranty-toc > ol {
+    columns: 1;
+  }
+
+  .warranty-term-grid,
+  .warranty-outcome-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .warranty-contents-section,
+  .warranty-intro-section {
+    padding-top: 3rem;
+    padding-bottom: 3rem;
+  }
+
+  .warranty-toc {
+    padding: 1.3rem 1.2rem;
+  }
+
+  .warranty-policy-section,
+  .warranty-subsection,
+  .warranty-standard-section {
+    scroll-margin-top: 78px;
+  }
+
+  .warranty-contact-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}
+
+.warranty-version-note {
+  margin: -0.35rem 0 0;
+  color: var(--color-muted);
+  font-size: 0.86rem;
+}

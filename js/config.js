@@ -107,6 +107,11 @@ window.Cornerpost = {
         title: "Request Plumbing Service | Cornerpost Plumbing",
         description: "Request residential plumbing service from Cornerpost Plumbing. Send your service details online or call for urgent plumbing help throughout western Nebraska.",
         canonical: "https://cornerpostplumbing.com/contact.html"
+      },
+      warranty: {
+        title: "Plumbing Warranty | Cornerpost Plumbing",
+        description: "Read Cornerpost Plumbing's workmanship and material warranty, including coverage for standard service, supplied materials, special services, warranty claims, access, restoration, and project-specific work.",
+        canonical: "https://cornerpostplumbing.com/warranty.html"
       }
     },
     socialImage: "images/social/cornerpost-social-share.jpg",
@@ -128,7 +133,8 @@ window.Cornerpost = {
         services: "Services",
         about: "About",
         reviews: "Reviews",
-        contact: "Contact"
+        contact: "Contact",
+        warranty: "Warranty"
       },
       logo: "images/branding/cornerpost-logo.png",
       image: "images/hero/hero-western-ne.png",

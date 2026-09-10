@@ -8,7 +8,11 @@ window.CornerpostNavigation = [
   {
     title: "About",
     href: "about.html",
-    page: "about"
+    page: "about",
+    children: [
+      { title: "About Cornerpost", href: "about.html" },
+      { title: "Our Warranty", href: "warranty.html", page: "warranty" }
+    ]
   },
   {
     title: "Reviews",
