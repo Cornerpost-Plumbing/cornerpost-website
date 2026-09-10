@@ -233,7 +233,21 @@
     showContent();
 
     if (!checkout || checkout.enabled !== true) {
+      /* 5.3.162: SAY SOMETHING. This branch used to hide the checkout and
+         return in silence, so a customer met their balance with no way to
+         pay it and nothing to read -- indistinguishable from a page that
+         had broken half way through loading. The server decides whether a
+         checkout may be offered; when it says no, the only honest thing to
+         do is say so calmly and point at the route that still works.
+
+         WHY it is unavailable is never said: an outage, a thrown kill
+         switch and a missing credential are the same fact to the person
+         reading this, and the difference is an operator's business. */
       hideCheckout();
+      showStatus(
+        "Online payment is temporarily unavailable for this invoice. Nothing has been charged. The payment instructions on your invoice explain how to pay by mail, or you can contact us using the details below.",
+        "notice"
+      );
       return;
     }
 

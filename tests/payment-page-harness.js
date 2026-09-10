@@ -405,6 +405,24 @@ checkAsync('B7  CHECKOUT CONFIG WITHHELD MEANS NO ACTIVE CONTROLS', async () => 
     p.visibleMethods().length === 0;
 });
 
+checkAsync('B7b  ...AND THE CUSTOMER IS TOLD SO, CALMLY. This branch used to ' +
+  'hide the checkout and return in silence, so a person met their balance ' +
+  'with no way to pay it and nothing to read -- indistinguishable from a ' +
+  'page that had broken half way through loading (5.3.162)', async () => {
+    const p = page({ checkout: { enabled: false } });
+    await settle(); await settle();
+    const said = p.status().textContent;
+
+    return /temporarily unavailable/i.test(said) &&
+      /nothing has been charged/i.test(said) &&
+      /* it points at the route that still works */
+      /by mail|contact/i.test(said) &&
+      /* and it never says WHY -- an outage, a thrown kill switch and a
+         missing credential are the same fact to the person reading it */
+      said.indexOf('CHECKOUT_DISABLED') === -1 &&
+      !/credential|client id|property|kill switch/i.test(said);
+  });
+
 checkAsync('B8  a backend failure says something calm and nothing internal',
   async () => {
     const p = page({ networkFails: true });
