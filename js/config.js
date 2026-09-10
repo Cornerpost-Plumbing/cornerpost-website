@@ -58,7 +58,7 @@ window.Cornerpost = {
   },
 
   branding: {
-    logo: "images/branding/cornerpost-logo.svg",
+    logo: "images/branding/Cornerpost-Logo-Name.png",
     heroImage: "images/hero/hero-western-ne.png"
   },
 
