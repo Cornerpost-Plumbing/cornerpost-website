@@ -86,7 +86,11 @@ function element(tag) {
 function page(o) {
   const opts = o || {};
   const eligible = Object.assign(
-    { paypal: true, venmo: true, googlepay: true }, opts.eligible || {});
+    /* 5.3.164: card is eligible by default, like the others, so the
+       guest-card path is exercised by every ordinary render rather
+       than only by the tests that ask for it. */
+    { paypal: true, venmo: true, googlepay: true, card: true },
+    opts.eligible || {});
 
   const requests = [];
   const sessions = [];
@@ -94,7 +98,10 @@ function page(o) {
   const world = { requests, sessions, scripts, logs: [] };
 
   const buttons = {};
-  ['venmo', 'paypal', 'google-pay', 'apple-pay'].forEach(function (m) {
+  /* The same buttons pay/index.html ships. 'card' joined them in 5.3.164;
+     without it here offer() finds no element, returns false, and the
+     guest-card path would look tested while never running once. */
+  ['venmo', 'paypal', 'google-pay', 'card', 'apple-pay'].forEach(function (m) {
     const b = element('button');
     b.dataset.paymentMethod = m;
     b.hidden = (m === 'apple-pay');
@@ -205,6 +212,9 @@ function page(o) {
           },
           createGooglePayOneTimePaymentSession(o2) {
             const s = session('googlepay'); s.options = o2; return s;
+          },
+          createPayPalGuestOneTimePaymentSession(o2) {
+            const s = session('card'); s.options = o2; return s;
           }
         });
       }
@@ -435,21 +445,27 @@ checkAsync('B8  a backend failure says something calm and nothing internal',
 /* ── Eligibility ─────────────────────────────────────────────────────── */
 section('C  Only what this buyer can actually use');
 
-checkAsync('C1  all three eligible -> all three offered, Apple Pay still ' +
-  'hidden', async () => {
+checkAsync('C1  all four eligible -> all four offered, Apple Pay still ' +
+  'hidden (5.3.164)', async () => {
   const p = page({});
   await settle(); await settle(); await settle();
-  return p.visibleMethods().join(',') === 'google-pay,paypal,venmo';
+  return p.visibleMethods().join(',') === 'card,google-pay,paypal,venmo' &&
+    p.buttons['apple-pay'].hidden === true;
 });
 
-checkAsync('C2  the SDK is asked for all three components, in USD', async () => {
-  const p = page({});
-  await settle(); await settle(); await settle();
-  return (p.instanceConfig.components || []).slice().sort().join(',') ===
-    'googlepay-payments,paypal-payments,venmo-payments' &&
-    p.eligibilityQuery.currencyCode === 'USD' &&
-    p.instanceConfig.pageType === 'checkout';
-});
+checkAsync('C2  the SDK is asked for all four components, in USD -- and ' +
+  'applepay-payments is not among them (5.3.164)', async () => {
+    const p = page({});
+    await settle(); await settle(); await settle();
+    const components = (p.instanceConfig.components || []).slice().sort();
+    return components.join(',') ===
+      'googlepay-payments,paypal-guest-payments,paypal-payments,venmo-payments' &&
+      /* Apple Pay needs a domain association file this page does not yet
+         serve; asking for the component would render a button that fails. */
+      components.indexOf('applepay-payments') === -1 &&
+      p.eligibilityQuery.currencyCode === 'USD' &&
+      p.instanceConfig.pageType === 'checkout';
+  });
 
 checkAsync('C3  VENMO INELIGIBLE -> hidden, not a disabled button', async () => {
   const p = page({ eligible: { venmo: false } });
@@ -479,12 +495,13 @@ checkAsync("C6  Google's library missing -> no Google Pay, others unaffected",
     const p = page({ noGoogleLibrary: true });
     await settle(); await settle(); await settle();
     return p.buttons['google-pay'].hidden === true &&
-      p.visibleMethods().join(',') === 'paypal,venmo';
+      p.visibleMethods().join(',') === 'card,paypal,venmo';
   });
 
 checkAsync('C7  nothing eligible -> the page says so once and offers ' +
   'nothing', async () => {
-  const p = page({ eligible: { paypal: false, venmo: false, googlepay: false } });
+  const p = page({ eligible: { paypal: false, venmo: false, googlepay: false,
+    card: false } });
   await settle(); await settle(); await settle();
   return p.visibleMethods().length === 0 && p.options.hidden === true &&
     /pay by mail/i.test(p.status().textContent);
@@ -794,6 +811,123 @@ checkAsync('H6  ...and a REFUSAL still leaves an operator something to read, ' +
     all.indexOf('sandbox-client-id') === -1 && all.indexOf('174') === -1 &&
     p.status().textContent.indexOf('PAYPAL_AUTH_401') === -1;
 });
+
+
+/* ── The card, for somebody who just has a bill and a Visa ──────────── */
+section('K  The guest credit/debit card (5.3.164)');
+
+checkAsync('K1  AN OBVIOUS CARD CHOICE APPEARS when the SDK says this buyer ' +
+  'is card-eligible -- the ordinary case for a plumbing invoice',
+  async () => {
+    const p = page({});
+    await settle(); await settle(); await settle();
+    return p.buttons['card'].hidden === false &&
+      p.buttons['card'].disabled === false &&
+      p.visibleMethods().indexOf('card') !== -1;
+  });
+
+checkAsync('K2  ...AND IS SIMPLY ABSENT WHEN IT IS NOT ELIGIBLE. A method ' +
+  'this buyer cannot use is not a disabled button', async () => {
+    const p = page({ eligible: { card: false } });
+    await settle(); await settle(); await settle();
+    return p.buttons['card'].hidden === true &&
+      p.visibleMethods().join(',') === 'google-pay,paypal,venmo';
+  });
+
+checkAsync('K3  IT IS THE GUEST SESSION, which is PayPal-HOSTED card entry ' +
+  '-- not card-fields, not Advanced Cards, so no card number ever ' +
+  'reaches Cornerpost', async () => {
+    const p = page({});
+    await settle(); await settle(); await settle();
+    await p.press('card');
+    await settle();
+    const used = p.sessions.filter(function (s) { return s.kind === 'card'; });
+    return used.length === 1 && used[0].started === 1;
+  });
+
+checkAsync('K4  IT REUSES THE ONE ORDER PATH. The card opens no order of its ' +
+  'own: the same createOrder call, carrying only the action and the ' +
+  'token, exactly as every other method', async () => {
+    const p = page({});
+    await settle(); await settle(); await settle();
+    await p.press('card');
+    await settle();
+    const bodies = p.bodies('createOrder');
+    return bodies.length === 1 &&
+      Object.keys(bodies[0]).sort().join(',') === 'action,token';
+  });
+
+checkAsync('K5  IT REUSES THE ONE SETTLEMENT PATH, so the capture the server ' +
+  'verifies -- and the Payment it writes -- is reached identically ' +
+  'however the customer chose to pay', async () => {
+    const p = page({});
+    await settle(); await settle(); await settle();
+    await p.press('card');
+    await settle();
+    const bodies = p.bodies('settle');
+    return bodies.length === 1 &&
+      Object.keys(bodies[0]).sort().join(',') === 'action,orderId,token' &&
+      /payment has been received/i.test(p.status().textContent);
+  });
+
+checkAsync('K6  THE CARD SENDS NO AMOUNT AND NO INVOICE either. The browser ' +
+  'gained a button, not authority', async () => {
+    const p = page({});
+    await settle(); await settle(); await settle();
+    await p.press('card');
+    await settle();
+    const all = JSON.stringify(p.requests.map(function (r) { return r.init.body; }));
+    return !/amount|balance|invoiceId|invoiceNumber|total/i.test(all);
+  });
+
+checkAsync('K7  THE GUEST SESSION IS GIVEN onComplete, which the others do ' +
+  'not need -- and it is inert, because settlement already happened in ' +
+  'onApprove and no browser callback may second-guess the server',
+  async () => {
+    const p = page({});
+    await settle(); await settle(); await settle();
+    await p.press('card');
+    await settle();
+    const s = p.sessions.filter(function (x) { return x.kind === 'card'; })[0];
+    if (!s || typeof s.options.onComplete !== 'function') return false;
+    const before = p.requests.length;
+    s.options.onComplete({ anything: true });
+    await settle();
+    /* calling it changes nothing and talks to nobody */
+    return p.requests.length === before;
+  });
+
+checkAsync('K8  PAYPAL AND VENMO ARE UNAFFECTED. Adding the card took ' +
+  'nothing away', async () => {
+    const p = page({});
+    await settle(); await settle(); await settle();
+    await p.press('paypal');
+    await settle();
+    const paypalUsed = p.sessions.filter(function (s) { return s.kind === 'paypal'; });
+    return p.buttons['paypal'].hidden === false &&
+      p.buttons['venmo'].hidden === false &&
+      paypalUsed.length === 1 &&
+      p.bodies('settle').length === 1;
+  });
+
+checkAsync('K9  ONE CHECKOUT AT A TIME still holds with a fourth button. ' +
+  'While the card checkout is opening, a second press opens nothing -- ' +
+  'so a double tap, or an impatient customer reaching for PayPal ' +
+  'instead, cannot produce two orders', async () => {
+    const p = page({ autoApprove: false });
+    await settle(); await settle(); await settle();
+
+    /* All three presses happen before anything awaits, which is exactly
+       the double tap the busy guard exists for. */
+    p.press('card');
+    p.press('paypal');
+    p.press('card');
+    await settle(); await settle();
+
+    return p.sessions.filter(function (s) { return s.kind === 'card'; }).length === 1 &&
+      p.sessions.filter(function (s) { return s.kind === 'paypal'; }).length === 0 &&
+      p.bodies('createOrder').length === 1;
+  });
 
 /* ── Runner ──────────────────────────────────────────────────────────── */
 

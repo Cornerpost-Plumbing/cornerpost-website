@@ -58,6 +58,11 @@
           <button class="payment-button" type="button" data-payment-method="venmo">Venmo</button>
           <button class="payment-button" type="button" data-payment-method="paypal">PayPal</button>
           <button class="payment-button" type="button" data-payment-method="google-pay">Google Pay</button>
+          <!-- 5.3.164: the ordinary case for a plumbing invoice -- somebody
+               has a bill and a Visa. Card entry is hosted by PayPal, so
+               Cornerpost never receives a card number. Hidden like every
+               other action until the SDK says this buyer is eligible. -->
+          <button class="payment-button" type="button" data-payment-method="card">Credit or Debit Card</button>
           <button class="payment-button" type="button" data-payment-method="apple-pay" hidden>Apple Pay</button>
         </div>
 
