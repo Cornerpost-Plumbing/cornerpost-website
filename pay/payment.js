@@ -37,6 +37,20 @@
 
   const GOOGLE_PAY_SDK_URL = "https://pay.google.com/gp/p/js/pay.js";
 
+  /* Apple's own library. PayPal supplies the merchant side; the sheet
+     itself is Apple's, and only Safari on Apple hardware has it. */
+  const APPLE_PAY_SDK_URL =
+    "https://applepay.cdn-apple.com/jsapi/v1/apple-pay-sdk.js";
+
+  /* Apple Pay asks for these; PayPal's config() supplies only the
+     capabilities and networks. Cornerpost is a US plumbing company
+     billing in USD -- the same assumption Venmo already makes. */
+  const APPLE_PAY_COUNTRY = "US";
+  const APPLE_PAY_CURRENCY = "USD";
+
+  /* The ApplePayJS version this integration is written against. */
+  const APPLE_PAY_VERSION = 4;
+
   const els = {
     status: document.getElementById("payment-status"),
     content: document.getElementById("payment-content"),
@@ -314,7 +328,10 @@
          alongside PayPal's, and its absence costs only Google Pay. */
       await Promise.all([
         loadScript(checkout.sdkOrigin + "/web-sdk/v6/core"),
-        loadScript(GOOGLE_PAY_SDK_URL).catch(() => {})
+        loadScript(GOOGLE_PAY_SDK_URL).catch(() => {}),
+        /* Apple's library is absent everywhere except Safari on Apple
+           devices, and its absence costs only Apple Pay. */
+        loadScript(APPLE_PAY_SDK_URL).catch(() => {})
       ]);
 
       if (!window.paypal || !window.paypal.createInstance) {
@@ -334,7 +351,8 @@
        */
       const sdk = await window.paypal.createInstance({
         clientId: checkout.clientId,
-        components: ["paypal-payments", "venmo-payments", "googlepay-payments"],
+        components: ["paypal-payments", "venmo-payments",
+          "googlepay-payments", "applepay-payments"],
         pageType: "checkout"
       });
 
@@ -379,6 +397,15 @@
       /* Asynchronous: Google itself decides whether this device can pay,
          and only then does a button appear. */
       if (await addGooglePay(sdk, googlePayEnvironment)) offered += 1;
+    }
+
+    /* 5.3.169: APPLE PAY, THIRD, AND ONLY WHERE IT CAN ACTUALLY WORK.
+       Three gates, all required: PayPal says the merchant is eligible,
+       the browser has ApplePaySession at all, and Apple says this
+       device can make payments. Any one of them false and the button
+       is absent -- never a disabled imitation. */
+    if (eligible(methods, "applepay")) {
+      if (await addApplePay(sdk)) offered += 1;
     }
 
     if (eligible(methods, "venmo")) {
@@ -624,6 +651,164 @@
    * SERVER gave for the order it had just created; it is never composed
    * here, and it is not what anybody is charged -- the PayPal order is.
    */
+  /**
+   * APPLE PAY (5.3.169).
+   *
+   * WEBSITE ONLY, AND THAT IS STRUCTURAL. Apple verifies the ORIGIN
+   * showing the button against a domain-association file served from
+   * /.well-known/ on that domain. cornerpostplumbing.com serves one and
+   * is registered; the Apps Script page is served from Google's domain
+   * at a path Cornerpost cannot add files to, so Apple Pay can never be
+   * offered there and is not asked for there.
+   *
+   * NOTHING SHIPS. Cornerpost sells plumbing work, so the payment
+   * request omits requiredShippingContactFields and shippingMethods
+   * entirely. Apple asks a buyer for a shipping address only when the
+   * merchant asks for one, so the way not to ask is not to ask.
+   */
+  async function addApplePay(sdk) {
+    /* ONE GATE, NOT TWO. Only Safari on Apple hardware has the API at all,
+       and having it is not the same as having a card in the wallet -- but
+       both answers are the same answer here, so they are asked once. A
+       separate `if (!window.ApplePaySession)` above this would be a second
+       guard covering the identical outcome, and redundant guards hide each
+       other. Some browsers throw rather than answer; a throw is a no. */
+    let walletReady = false;
+    try {
+      walletReady = !!window.ApplePaySession &&
+        window.ApplePaySession.canMakePayments() === true;
+    } catch (error) {
+      walletReady = false;
+    }
+    if (!walletReady) return false;
+
+    try {
+      const session = await sdk.createApplePayOneTimePaymentSession(
+        sessionOptions());
+      const config = await session.config();
+      return offer("apple-pay", () => openApplePay(session, config));
+    } catch (error) {
+      /* Apple Pay could not be prepared -- most often a merchant or
+         domain that is not provisioned. The other methods are
+         unaffected and the customer is never told about a button they
+         did not see. */
+      return false;
+    }
+  }
+
+  /**
+   * THE ORDER IS CREATED IN PARALLEL, NOT FIRST, AND THAT IS REQUIRED.
+   *
+   * ApplePaySession.begin() must be called inside the user gesture that
+   * started it. Awaiting our server before begin() would spend the
+   * gesture and Apple would refuse to open the sheet -- so the order is
+   * started here and awaited later, in onpaymentauthorized, where there
+   * is no gesture left to lose.
+   *
+   * WHICH MEANS THE SHEET SHOWS THE BALANCE THIS PAGE WAS LOADED WITH.
+   * That figure is display only, exactly as Google Pay's is. The amount
+   * actually charged is the PayPal order the SERVER created from the
+   * workbook at the moment of asking, and if the balance moved in
+   * between, settlement refuses and nothing is captured.
+   */
+  function openApplePay(session, config) {
+    if (busy || settled) return;
+    setBusy(true);
+    showStatus("Opening checkout. One moment.", "info");
+
+    const orderPromise = createOrder();
+    /* A rejection here is reported by createOrder itself; this keeps it
+       from also surfacing as an unhandled rejection. */
+    orderPromise.catch(() => {});
+
+    let apple;
+    try {
+      apple = new window.ApplePaySession(APPLE_PAY_VERSION, {
+        countryCode: APPLE_PAY_COUNTRY,
+        currencyCode: APPLE_PAY_CURRENCY,
+        merchantCapabilities: config.merchantCapabilities,
+        supportedNetworks: config.supportedNetworks,
+        /* No requiredShippingContactFields and no shippingMethods: a
+           plumbing invoice ships nothing. */
+        total: {
+          label: els.businessName.textContent || "Cornerpost Plumbing",
+          type: "final",
+          amount: appleTotal()
+        }
+      });
+    } catch (error) {
+      launchFailed(error);
+      setBusy(false);
+      return;
+    }
+
+    apple.onvalidatemerchant = (event) => {
+      session.validateMerchant({ validationUrl: event.validationURL })
+        .then((payload) => {
+          apple.completeMerchantValidation(payload.merchantSession);
+        })
+        .catch((error) => {
+          launchFailed(error);
+          try { apple.abort(); } catch (ignored) { /* already closed */ }
+          setBusy(false);
+        });
+    };
+
+    apple.onpaymentauthorized = (event) => {
+      orderPromise
+        .then((order) => session.confirmOrder({
+          orderId: order.orderId,
+          token: event.payment.token,
+          billingContact: event.payment.billingContact
+        }).then(() => order.orderId))
+        .then((orderId) => {
+          showStatus(
+            "Confirming your payment with the bank. Please do not close this page.",
+            "info"
+          );
+          return settle(orderId);
+        })
+        .then(() => {
+          apple.completePayment({
+            status: settled
+              ? window.ApplePaySession.STATUS_SUCCESS
+              : window.ApplePaySession.STATUS_FAILURE
+          });
+        })
+        .catch(() => {
+          /* Whatever failed has already told the customer; Apple only
+             needs to be told the sheet is finished. */
+          apple.completePayment({
+            status: window.ApplePaySession.STATUS_FAILURE
+          });
+        })
+        .then(() => { setBusy(false); });
+    };
+
+    apple.oncancel = () => {
+      setBusy(false);
+      if (!settled) {
+        showStatus(
+          "The checkout was closed and nothing has been charged. You can start again whenever you are ready.",
+          "notice"
+        );
+      }
+    };
+
+    apple.begin();
+  }
+
+  /**
+   * What Apple's sheet displays. DISPLAY ONLY -- see openApplePay.
+   *
+   * Read back off the page, which got it from the server, and stripped
+   * of the formatting a person reads. Apple wants a bare decimal.
+   */
+  function appleTotal() {
+    const shown = (els.balanceDue.textContent || "").replace(/[^0-9.]/g, "");
+    return shown || "0.00";
+  }
+
   async function addGooglePay(sdk, googlePayEnvironment) {
     if (!window.google || !window.google.payments || !window.google.payments.api) {
       return false;   /* Google's library did not load. No button. */

@@ -100,7 +100,9 @@ function page(o) {
     /* 5.3.164: card is eligible by default, like the others, so the
        guest-card path is exercised by every ordinary render rather
        than only by the tests that ask for it. */
-    { paypal: true, venmo: true, googlepay: true },
+    /* 5.3.169: applepay eligible by default too, so the Apple Pay path
+       runs in every ordinary render rather than only where asked. */
+    { paypal: true, venmo: true, googlepay: true, applepay: true },
     opts.eligible || {});
 
   const requests = [];
@@ -162,6 +164,13 @@ function page(o) {
           set(value) {
             scripts.push(value);
             setTimeout(function () {
+              if (value.indexOf('applepay.cdn-apple.com') !== -1) {
+                if (!opts.noApplePayLibrary) {
+                  ctx.window.ApplePaySession = appleLibrary();
+                }
+                el.onload ? el.onload() : null;
+                return;
+              }
               if (value.indexOf('pay.google.com') !== -1) {
                 if (!opts.noGoogleLibrary) ctx.window.google = googleLibrary();
                 el.onload ? el.onload() : null;
@@ -239,12 +248,68 @@ function page(o) {
           createGooglePayOneTimePaymentSession(o2) {
             const s = session('googlepay'); s.options = o2; return s;
           },
+          createApplePayOneTimePaymentSession(o2) {
+            /* v6: this one is ASYNC -- it resolves to the session. A
+               mock that returned it synchronously would let a page
+               that forgot to await pass. */
+            if (opts.applePaySessionFails) {
+              return Promise.reject(new Error('merchant not provisioned'));
+            }
+            const s = session('applepay'); s.options = o2;
+            s.config = () => Promise.resolve({
+              merchantCapabilities: ['supports3DS'],
+              supportedNetworks: ['visa', 'masterCard', 'amex', 'discover']
+            });
+            s.validateMerchant = (arg) => {
+              world.validateMerchantArg = arg;
+              if (opts.validateMerchantFails) {
+                return Promise.reject(new Error('validation refused'));
+              }
+              return Promise.resolve({ merchantSession: { epoch: 1 } });
+            };
+            s.confirmOrder = (arg) => {
+              world.confirmOrderArg = arg;
+              s.confirmed += 1;
+              return Promise.resolve();
+            };
+            return Promise.resolve(s);
+          },
           createPayPalGuestOneTimePaymentSession(o2) {
             const s = session('card'); s.options = o2; return s;
           }
         });
       }
     };
+  }
+
+  /**
+   * Apple's own library, as Safari on an Apple device provides it.
+   *
+   * The real one opens a sheet the user drives; this one records the
+   * payment request and lets a test fire the same events Apple fires.
+   */
+  function appleLibrary() {
+    function ApplePaySession(version, request) {
+      world.applePayVersion = version;
+      world.applePayRequest = request;
+      this.begin = function () { world.applePayBegun = true; };
+      this.abort = function () { world.applePayAborted = true; };
+      this.completeMerchantValidation = function (merchantSession) {
+        world.merchantValidationCompleted = merchantSession;
+      };
+      this.completePayment = function (result) {
+        world.applePayCompleted = result;
+      };
+      world.applePay = this;
+    }
+    ApplePaySession.canMakePayments = function () {
+      if (opts.applePayThrows) throw new Error('no wallet');
+      return opts.appleCanMakePayments === undefined
+        ? true : opts.appleCanMakePayments;
+    };
+    ApplePaySession.STATUS_SUCCESS = 'ok';
+    ApplePaySession.STATUS_FAILURE = 'no';
+    return ApplePaySession;
   }
 
   function googleLibrary() {
@@ -471,23 +536,20 @@ checkAsync('B8  a backend failure says something calm and nothing internal',
 /* ── Eligibility ─────────────────────────────────────────────────────── */
 section('C  Only what this buyer can actually use');
 
-checkAsync('C1  all eligible -> all offered, Apple Pay still hidden', async () => {
+checkAsync('C1  all eligible -> all four offered, Apple Pay among them (5.3.169)', async () => {
   const p = page({});
   await settle(); await settle(); await settle();
-  return p.visibleMethods().join(',') === 'google-pay,paypal,venmo' &&
-    p.buttons['apple-pay'].hidden === true;
+  return p.visibleMethods().join(',') === 'apple-pay,google-pay,paypal,venmo' &&
+    p.buttons['apple-pay'].hidden === false;
 });
 
-checkAsync('C2  the SDK is asked for the three payment components, in USD ' +
-  '-- and applepay-payments is not among them yet (5.3.168)', async () => {
+checkAsync('C2  the SDK is asked for all four payment components, in USD ' +
+  '(5.3.169)', async () => {
     const p = page({});
     await settle(); await settle(); await settle();
     const components = (p.instanceConfig.components || []).slice().sort();
     return components.join(',') ===
-      'googlepay-payments,paypal-payments,venmo-payments' &&
-      /* Apple Pay needs a domain association file this page does not yet
-         serve; asking for the component would render a button that fails. */
-      components.indexOf('applepay-payments') === -1 &&
+      'applepay-payments,googlepay-payments,paypal-payments,venmo-payments' &&
       p.eligibilityQuery.currencyCode === 'USD' &&
       p.instanceConfig.pageType === 'checkout';
   });
@@ -520,12 +582,13 @@ checkAsync("C6  Google's library missing -> no Google Pay, others unaffected",
     const p = page({ noGoogleLibrary: true });
     await settle(); await settle(); await settle();
     return p.buttons['google-pay'].hidden === true &&
-      p.visibleMethods().join(',') === 'paypal,venmo';
+      p.visibleMethods().join(',') === 'apple-pay,paypal,venmo';
   });
 
 checkAsync('C7  nothing eligible -> the page says so once and offers ' +
   'nothing', async () => {
-  const p = page({ eligible: { paypal: false, venmo: false, googlepay: false } });
+  const p = page({ eligible: { paypal: false, venmo: false, googlepay: false,
+    applepay: false } });
   await settle(); await settle(); await settle();
   return p.visibleMethods().length === 0 && p.options.hidden === true &&
     /pay by mail/i.test(p.status().textContent);
@@ -788,9 +851,9 @@ checkAsync('H3  EACH METHOD CREATES ONE SESSION AND ONLY ITS OWN', async () => {
   p.press('venmo');
   await settle(); await settle();
   const kinds = p.sessions.map(function (s) { return s.kind; }).sort();
-  /* Google Pay builds its one session while deciding whether the device
-     can pay at all, which is the only way to ask. */
-  return kinds.join(',') === 'googlepay,venmo';
+  /* Google Pay and Apple Pay each build their one session while deciding
+     whether the device can pay at all, which is the only way to ask. */
+  return kinds.join(',') === 'applepay,googlepay,venmo';
 });
 
 checkAsync('H4  A RETURN-LOOKING URL STILL ASKS. Removing the session from ' +
@@ -853,7 +916,7 @@ checkAsync('L1  THE CUSTOMER-FACING ORDER IS PayPal, Google Pay, Apple Pay, ' +
     await settle(); await settle(); await settle();
     /* Apple Pay is eligible-but-unserved today, so it is absent and the
        rest close up. */
-    return shownInOrder(p).join(',') === 'paypal,google-pay,venmo';
+    return shownInOrder(p).join(',') === 'paypal,google-pay,apple-pay,venmo';
   });
 
 check('L2  THE MARKUP ITSELF CARRIES THAT ORDER, including Apple Pay\'s ' +
@@ -866,14 +929,14 @@ checkAsync('L3  AN INELIGIBLE METHOD IS OMITTED AND THE REST KEEP THEIR ' +
   'RELATIVE ORDER -- no gap, no placeholder, no disabled button', async () => {
     const p = page({ eligible: { googlepay: false } });
     await settle(); await settle(); await settle();
-    return shownInOrder(p).join(',') === 'paypal,venmo' &&
+    return shownInOrder(p).join(',') === 'paypal,apple-pay,venmo' &&
       p.buttons['google-pay'].hidden === true &&
       p.buttons['google-pay'].disabled === false;
   });
 
-checkAsync('L4  WITH GOOGLE PAY UNAVAILABLE the remaining two still read ' +
-  'PayPal then Venmo', async () => {
-    const p = page({ eligible: { googlepay: false } });
+checkAsync('L4  WITH GOOGLE PAY AND APPLE PAY UNAVAILABLE the remaining two ' +
+  'still read PayPal then Venmo', async () => {
+    const p = page({ eligible: { googlepay: false, applepay: false } });
     await settle(); await settle(); await settle();
     return shownInOrder(p).join(',') === 'paypal,venmo';
   });
@@ -959,6 +1022,200 @@ checkAsync('M6  targetElement LEFT WITH THE METHOD IT WAS ADDED FOR. It ' +
     const s = p.sessions.filter(function (x) { return x.kind === 'paypal'; })[0];
     return !!s && s.presentation.presentationMode === 'auto' &&
       s.presentation.targetElement === undefined;
+  });
+
+
+/* ── Apple Pay ───────────────────────────────────────────────────────── */
+section('N  Apple Pay (5.3.169)');
+
+/** Drives the Apple sheet the way Safari drives it. */
+async function applePayThrough(p, opts) {
+  await settle(); await settle(); await settle();
+  await p.press('apple-pay');
+  await settle();
+  const o = opts || {};
+  if (o.validate !== false) {
+    p.applePay.onvalidatemerchant({ validationURL: 'https://apple-pay-gateway.example/paymentservices' });
+    await settle(); await settle();
+  }
+  if (o.authorize !== false) {
+    p.applePay.onpaymentauthorized({
+      payment: {
+        token: { paymentData: 'opaque' },
+        billingContact: { familyName: 'Fullmer' }
+      }
+    });
+    await settle(); await settle(); await settle();
+  }
+  return p;
+}
+
+checkAsync('N1  APPLE PAY IS OFFERED where PayPal says the merchant is ' +
+  'eligible, the browser has ApplePaySession, and Apple says this device ' +
+  'can pay -- all three, or it is absent', async () => {
+    const p = page({});
+    await settle(); await settle(); await settle();
+    return p.buttons['apple-pay'].hidden === false;
+  });
+
+checkAsync('N2  NO APPLE LIBRARY -> NO APPLE PAY. Every browser that is not ' +
+  'Safari on Apple hardware, which is most of them', async () => {
+    const p = page({ noApplePayLibrary: true });
+    await settle(); await settle(); await settle();
+    return p.buttons['apple-pay'].hidden === true &&
+      p.visibleMethods().join(',') === 'google-pay,paypal,venmo';
+  });
+
+checkAsync('N3  canMakePayments() FALSE -> NO APPLE PAY. The device has the ' +
+  'API but no wallet a buyer could actually use', async () => {
+    const p = page({ appleCanMakePayments: false });
+    await settle(); await settle(); await settle();
+    return p.buttons['apple-pay'].hidden === true;
+  });
+
+checkAsync('N4  canMakePayments() THROWING IS ALSO A NO. Some browsers raise ' +
+  'rather than answer, and a throw must not take the whole page down',
+  async () => {
+    const p = page({ applePayThrows: true });
+    await settle(); await settle(); await settle();
+    return p.buttons['apple-pay'].hidden === true &&
+      p.visibleMethods().join(',') === 'google-pay,paypal,venmo';
+  });
+
+checkAsync('N5  PAYPAL SAYING INELIGIBLE IS ENOUGH ON ITS OWN, whatever the ' +
+  'device thinks', async () => {
+    const p = page({ eligible: { applepay: false } });
+    await settle(); await settle(); await settle();
+    return p.buttons['apple-pay'].hidden === true;
+  });
+
+checkAsync('N6  AN UNPROVISIONED MERCHANT IS ABSENT, NOT BROKEN. If the ' +
+  'session cannot be created the other methods are unaffected and the ' +
+  'customer never learns of a button they did not see', async () => {
+    const p = page({ applePaySessionFails: true });
+    await settle(); await settle(); await settle();
+    return p.buttons['apple-pay'].hidden === true &&
+      p.visibleMethods().join(',') === 'google-pay,paypal,venmo' &&
+      !/unavailable|could not/i.test(p.status().textContent);
+  });
+
+checkAsync('N7  NOTHING SHIPS. A plumbing invoice asks for no shipping ' +
+  'contact and offers no shipping methods -- Apple asks a buyer for an ' +
+  'address only when the merchant asks for one', async () => {
+    const p = page({});
+    await settle(); await settle(); await settle();
+    await p.press('apple-pay');
+    await settle();
+    const r = p.applePayRequest;
+    return !!r &&
+      r.requiredShippingContactFields === undefined &&
+      r.shippingMethods === undefined &&
+      r.shippingType === undefined &&
+      r.requiredShippingContactFields !== null;
+  });
+
+checkAsync('N8  THE REQUEST IS BUILT FROM PAYPAL\'S OWN CONFIG, not from ' +
+  'values invented here -- capabilities and networks are whatever the ' +
+  'merchant account actually supports', async () => {
+    const p = page({});
+    await settle(); await settle(); await settle();
+    await p.press('apple-pay');
+    await settle();
+    const r = p.applePayRequest;
+    return r.merchantCapabilities.join(',') === 'supports3DS' &&
+      r.supportedNetworks.join(',') === 'visa,masterCard,amex,discover' &&
+      r.countryCode === 'US' && r.currencyCode === 'USD' &&
+      p.applePayVersion === 4;
+  });
+
+checkAsync('N9  THE SHEET OPENS INSIDE THE CLICK. begin() is called without ' +
+  'awaiting the server first, because Apple refuses to open a sheet once ' +
+  'the user gesture has been spent', async () => {
+    const p = page({});
+    await settle(); await settle(); await settle();
+    p.press('apple-pay');
+    /* no awaits at all: begin() must already have happened */
+    return p.applePayBegun === true;
+  });
+
+checkAsync('N10  MERCHANT VALIDATION GOES THROUGH PAYPAL and its answer is ' +
+  'handed straight back to Apple', async () => {
+    const p = await applePayThrough(page({}), { authorize: false });
+    return p.validateMerchantArg.validationUrl ===
+      'https://apple-pay-gateway.example/paymentservices' &&
+      !!p.merchantValidationCompleted;
+  });
+
+checkAsync('N11  A REFUSED VALIDATION TELLS THE CUSTOMER AND CLOSES THE ' +
+  'SHEET, rather than leaving them looking at it', async () => {
+    const p = page({ validateMerchantFails: true });
+    await applePayThrough(p, { authorize: false });
+    return /could not be opened/i.test(p.status().textContent) &&
+      p.applePayAborted === true;
+  });
+
+checkAsync('N12  AUTHORIZATION CONFIRMS THE ORDER WITH APPLE\'S TOKEN, ' +
+  'against the order id THIS SERVER created', async () => {
+    const p = await applePayThrough(page({}));
+    const arg = p.confirmOrderArg;
+    return !!arg && arg.orderId === 'ORD-1' &&
+      arg.token.paymentData === 'opaque' &&
+      arg.billingContact.familyName === 'Fullmer';
+  });
+
+checkAsync('N13  AND THEN IT SETTLES THROUGH THE ONE EXISTING PATH. Apple ' +
+  'Pay records a payment the same way PayPal and Venmo do -- one order, ' +
+  'one settle, one capture', async () => {
+    const p = await applePayThrough(page({}));
+    return p.bodies('createOrder').length === 1 &&
+      p.bodies('settle').length === 1 &&
+      Object.keys(p.bodies('settle')[0]).sort().join(',') ===
+        'action,orderId,token' &&
+      /payment has been received/i.test(p.status().textContent);
+  });
+
+checkAsync('N14  APPLE IS TOLD THE RESULT, so the sheet closes on success ' +
+  'rather than spinning', async () => {
+    const p = await applePayThrough(page({}));
+    return p.applePayCompleted && p.applePayCompleted.status === 'ok';
+  });
+
+checkAsync('N15  A REFUSED SETTLEMENT TELLS APPLE FAILURE and leaves the ' +
+  'customer the server\'s own words', async () => {
+    const p = await applePayThrough(
+      page({ settle: { recorded: false, reason: 'amountchanged' } }));
+    return p.applePayCompleted.status === 'no' &&
+      /balance on this invoice changed/i.test(p.status().textContent);
+  });
+
+checkAsync('N16  APPLE PAY SENDS NO AMOUNT AND NO INVOICE to Cornerpost. The ' +
+  'sheet figure is display only; the charge is the order the server made',
+  async () => {
+    const p = await applePayThrough(page({}));
+    const all = JSON.stringify(p.requests.map(function (r) { return r.init.body; }));
+    return !/amount|balance|invoiceId|invoiceNumber/i.test(all);
+  });
+
+checkAsync('N17  CANCELLING CHARGES NOTHING AND SAYS SO CALMLY', async () => {
+    const p = page({});
+    await settle(); await settle(); await settle();
+    await p.press('apple-pay');
+    await settle();
+    p.applePay.oncancel();
+    await settle();
+    return /nothing has been charged/i.test(p.status().textContent) &&
+      p.bodies('settle').length === 0;
+  });
+
+checkAsync('N18  PAYPAL, GOOGLE PAY AND VENMO ARE UNAFFECTED by Apple Pay ' +
+  'being there', async () => {
+    const p = page({});
+    await settle(); await settle(); await settle();
+    await p.press('paypal');
+    await settle();
+    return p.bodies('settle').length === 1 &&
+      p.buttons['google-pay'].hidden === false &&
+      p.buttons['venmo'].hidden === false;
   });
 
 /* ── Runner ──────────────────────────────────────────────────────────── */
