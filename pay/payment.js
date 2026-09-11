@@ -334,8 +334,7 @@
        */
       const sdk = await window.paypal.createInstance({
         clientId: checkout.clientId,
-        components: ["paypal-payments", "venmo-payments", "googlepay-payments",
-          "paypal-guest-payments"],
+        components: ["paypal-payments", "venmo-payments", "googlepay-payments"],
         pageType: "checkout"
       });
 
@@ -397,19 +396,6 @@
       )) ? 1 : 0;
     }
 
-    /* 5.3.164: THE CARD, FOR SOMEBODY WHO JUST HAS A BILL AND A VISA.
-       PayPal's docs render this with a <paypal-basic-card-button> web
-       component, but the same page starts the session from an ordinary
-       click handler -- so the component is a convenience, not the
-       contract, and this page keeps one consistent set of actions. The
-       card form itself is PayPal-hosted: no card number reaches
-       Cornerpost and no PCI scope comes with it. */
-    if (eligible(methods, "card")) {
-      offered += offer("card", () => openSession(
-        "card",
-        () => sdk.createPayPalGuestOneTimePaymentSession(guestSessionOptions())
-      )) ? 1 : 0;
-    }
 
     if (!offered) {
       checkoutUnavailable(
@@ -428,23 +414,6 @@
   }
 
   /** The callbacks every session shares. One set, one settlement path. */
-  /**
-   * The guest-card session's options (5.3.164).
-   *
-   * The same options every other method uses, plus onComplete, which the
-   * guest payment session requires and the others do not. It is
-   * deliberately a no-op: settlement already happened in onApprove via
-   * settle(), and the page state that produced is the truth. Doing
-   * anything here would be a SECOND opinion about a payment the server
-   * has already decided, which is the one thing no browser callback may
-   * become.
-   */
-  function guestSessionOptions() {
-    const options = sessionOptions();
-    options.onComplete = () => { /* see above: deliberately nothing */ };
-    return options;
-  }
-
   function sessionOptions() {
     return {
       onApprove: (data) => {
@@ -608,15 +577,13 @@
      * createOrder rejects and the checkout never opens -- so a refusal
      * cannot become a half-open payment window.
      *
-     * targetElement IS THE BUTTON THAT WAS PRESSED (5.3.167). PayPal
-     * documents it as "the element that triggered the session, used for
-     * overlay positioning". PayPal and Venmo open a window of their own
-     * and never needed it; the guest card is the one method that renders
-     * an OVERLAY INTO THIS PAGE, and it is the one that failed in the
-     * field with no overlay and no error.
+     * targetElement WAS PASSED HERE AND IS NOT ANY MORE (5.3.168). It
+     * exists to position an OVERLAY, and the dedicated guest card was
+     * the only method that rendered one into this page; PayPal and
+     * Venmo open a window of their own and never needed it. It left
+     * with the method it was added for.
      */
-    Promise.resolve(session.start(
-      { presentationMode: "auto", targetElement: buttonFor(method) },
+    Promise.resolve(session.start({ presentationMode: "auto" },
       createOrder()))
       .catch(launchFailed)
       .then(() => { setBusy(false); });
@@ -628,7 +595,7 @@
    * This catch used to be empty, on the assumption that whatever went
    * wrong had already been reported -- by createOrder for a server
    * refusal, or by the session’s own onError. That assumption held for
-   * PayPal and Venmo and was FALSE for the guest card: a customer pressed
+   * PayPal and Venmo and was FALSE for the method that failed: a customer pressed
    * the button, saw "Opening checkout", waited, and was returned to an
    * idle page with no message and nothing in the console. An empty catch
    * is not error handling; it is a decision to discard the only evidence
