@@ -4,16 +4,22 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
-  <!-- SANDBOX PREVIEW, NOT THE CUSTOMER PAGE.
+  <!-- LIVE PREVIEW, NOT THE CUSTOMER PAGE. This page now talks to the
+       Live payment backend and real money is reachable from it.
+
+       It said "Sandbox" until the cutover, and that word was doing real
+       safety work: it told anyone who opened it that nothing here could
+       charge a card. That stopped being true, so the word had to go with
+       it. What protects this page now is the checkout kill switch, not a
+       test environment.
 
        Unlinked from the website, excluded from sitemap.xml, and noindex
-       below. It exists only so Apple Pay can be exercised from the
-       registered origin; the customer page is /pay/ and is untouched.
+       below. The customer page is /pay/, still Sandbox-backed and
+       untouched, and existing invoice links still resolve there.
 
-       The visible page is deliberately identical to the real one so that
-       acceptance testing shows what a customer would actually see. The
-       tab title is the one tell, and Sandbox is the real control. -->
-  <title>Pay Invoice (Sandbox preview) | Cornerpost Plumbing</title>
+       The visible page stays identical to the real one so acceptance
+       testing shows what a customer would actually see. -->
+  <title>Pay Invoice (Live preview) | Cornerpost Plumbing</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>

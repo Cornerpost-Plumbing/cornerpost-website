@@ -32,24 +32,30 @@
    * altered because the host changed.
    */
 
-  /* SANDBOX ONLY. THIS IS THE PREVIEW COPY, NOT THE CUSTOMER PAGE.
+  /* THIS PREVIEW NOW TALKS TO LIVE. READ THAT AGAIN BEFORE EDITING IT.
 
-     This file exists because Apple verifies the ORIGIN showing an Apple
-     Pay button against the domain-association file served from
-     /.well-known/ on that host. cornerpostplumbing.com is registered, so
-     Apple Pay can be exercised from a path on this host and from nowhere
-     else -- localhost cannot work. /pay-preview/ is that path: unlinked,
-     noindex, and pointed at Sandbox.
+     Until the cutover it pointed at Sandbox, where nothing could ever
+     move real money. It no longer does. The endpoint below is the
+     stable LIVE deployment, and the only thing standing between this
+     page and a real card is the checkout kill switch -- currently off,
+     deliberately, and proven off at the create-order boundary rather
+     than assumed.
 
-     THE CUSTOMER PAGE AT /pay/ IS NOT THIS FILE AND IS NOT AFFECTED BY IT.
+     WHY THE PREVIEW AND NOT THE CUSTOMER PAGE. Pointing /pay/ at Live
+     before the path is proven would put every customer holding an
+     invoice link on an untested page. This route is unlinked, noindex
+     and absent from the sitemap, so the whole Live path can be proven
+     end to end with nobody standing in front of it.
 
-     Deployment @16, Cornerpost Invoice Payment 5.3.167 -- Sandbox. This
-     is the CURRENT Sandbox deployment, and deliberately not the one /pay/
-     still names: that is @13 (5.3.159), which predates both the checkout
-     kill switch (5.3.162) and NO_SHIPPING (5.3.165), so it could not
-     preserve either. Sandbox cannot move real money. */
+     THE CUSTOMER PAGE AT /pay/ IS NOT THIS FILE AND IS NOT AFFECTED BY
+     IT. It still names Sandbox, and existing invoice links still resolve
+     there, unchanged, exactly as they did before.
+
+     Deployment is the stable Live one, kept at a fixed URL so versions
+     and rollbacks move behind it without republishing this site:
+     Cornerpost Invoice Payment 5.3.168 -- LIVE -- version 2. */
   const PAYMENT_API_URL =
-    "https://script.google.com/macros/s/AKfycbyck8IT4vr2tzqdXTHkq2PDM8OMtzCTZwxPhl4q_OtFVSzlo8TtkJy1UVkND11opePpzw/exec";
+    "https://script.google.com/macros/s/AKfycbwAU3EuC4kt8Sq9vTeycXD8GG-VygpnJW7HI9Za_e5wZgaoK1Eacek6LcFcEWTgfbaQ/exec";
 
   const GOOGLE_PAY_SDK_URL = "https://pay.google.com/gp/p/js/pay.js";
 
