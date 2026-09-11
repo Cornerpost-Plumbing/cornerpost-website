@@ -63,10 +63,14 @@
         <div class="payment-actions">
           <button class="payment-button" type="button" data-payment-method="paypal">PayPal</button>
           <button class="payment-button" type="button" data-payment-method="google-pay">Google Pay</button>
-          <!-- Apple Pay holds its place in the sequence but is never
-               revealed yet: it needs a domain-association file this site
-               does not serve. When that is done it appears here, third,
-               without anything else moving. -->
+          <!-- Apple Pay appears here, third, on the devices that can
+               actually use it, and is absent everywhere else. This site
+               serves the Live domain-association file Apple validates the
+               origin against, and cornerpostplumbing.com is registered
+               with PayPal, so the remaining gates are the buyer's: PayPal
+               eligibility, the browser having the API, and the device
+               having a usable card. Hidden here is the starting state,
+               not a permanent one. -->
           <button class="payment-button" type="button" data-payment-method="apple-pay" hidden>Apple Pay</button>
           <button class="payment-button" type="button" data-payment-method="venmo">Venmo</button>
         </div>
