@@ -467,6 +467,13 @@
       },
       onError: () => {
         if (!settled) refuse("unverified");
+      },
+      /* 5.3.167: the SDK’s warnings were being discarded entirely.
+         Operator diagnostics only -- a warning is not a refusal, so
+         the customer is told nothing. */
+      onWarn: (warning) => {
+        console.warn("[Cornerpost payment] SDK warning: " +
+          ((warning && warning.message) || warning));
       }
     };
   }
@@ -477,6 +484,13 @@
    * THE ONLY THING SENT IS THE TOKEN. There is no amount and no invoice
    * in this request, and the server would not read one if there were.
    */
+  /** An error whose reason the customer has already been told. */
+  function reportedError() {
+    const e = new Error("createOrder");
+    e.cpReported = true;
+    return e;
+  }
+
   async function createOrder() {
     const answer = await postPaymentAction({
       action: "createOrder",
@@ -485,7 +499,7 @@
 
     if (!answer || answer.transport !== "ok") {
       refuse("failed", answer && answer.reason);
-      throw new Error("createOrder");
+      throw reportedError();
     }
 
     const result = answer.result;
@@ -493,7 +507,7 @@
       /* The server decided. A balance that moved, an invoice that is no
          longer payable -- none of that is reconciled here. */
       refuse((result && result.reason) || "failed", result && result.diagnostic);
-      throw new Error("createOrder");
+      throw reportedError();
     }
 
     hideStatus();
@@ -589,12 +603,46 @@
     showStatus("Opening checkout. One moment.", "info");
 
     const session = makeSession();
-    /* start() is given a PROMISE of an order id. If the server refuses,
-       createOrder rejects and the checkout never opens -- so a refusal
-       cannot become a half-open payment window. */
-    Promise.resolve(session.start({ presentationMode: "auto" }, createOrder()))
-      .catch(() => { /* already reported by createOrder / onError */ })
+    /**
+     * start() is given a PROMISE of an order id. If the server refuses,
+     * createOrder rejects and the checkout never opens -- so a refusal
+     * cannot become a half-open payment window.
+     *
+     * targetElement IS THE BUTTON THAT WAS PRESSED (5.3.167). PayPal
+     * documents it as "the element that triggered the session, used for
+     * overlay positioning". PayPal and Venmo open a window of their own
+     * and never needed it; the guest card is the one method that renders
+     * an OVERLAY INTO THIS PAGE, and it is the one that failed in the
+     * field with no overlay and no error.
+     */
+    Promise.resolve(session.start(
+      { presentationMode: "auto", targetElement: buttonFor(method) },
+      createOrder()))
+      .catch(launchFailed)
       .then(() => { setBusy(false); });
+  }
+
+  /**
+   * A CHECKOUT THAT WOULD NOT OPEN MUST SAY SO (5.3.167).
+   *
+   * This catch used to be empty, on the assumption that whatever went
+   * wrong had already been reported -- by createOrder for a server
+   * refusal, or by the session’s own onError. That assumption held for
+   * PayPal and Venmo and was FALSE for the guest card: a customer pressed
+   * the button, saw "Opening checkout", waited, and was returned to an
+   * idle page with no message and nothing in the console. An empty catch
+   * is not error handling; it is a decision to discard the only evidence
+   * there was.
+   *
+   * A refusal is not reported twice: createOrder marks the error it
+   * throws, because it has already said something truer than this.
+   */
+  function launchFailed(error) {
+    if (error && error.cpReported) return;
+    if (settled) return;
+    console.warn("[Cornerpost payment] checkout did not open: " +
+      ((error && error.message) || error));
+    refuse("failed");
   }
 
   /**

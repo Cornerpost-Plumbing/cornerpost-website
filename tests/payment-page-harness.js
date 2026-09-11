@@ -184,6 +184,17 @@ function page(o) {
       start(presentation, orderPromise) {
         s.started += 1;
         s.presentation = presentation;
+        /* 5.3.167: THE REAL SDK CAN REJECT HERE. Until the guest card
+           failed in Sandbox every mock resolved, so an empty catch in the
+           page looked perfectly correct. A mock that cannot fail proves
+           only that the mock cannot fail. */
+        if (opts.startFails) {
+          return Promise.resolve(orderPromise)
+            .then(function () {
+              return Promise.reject(new Error(opts.startFails === true
+                ? 'sdk could not open' : String(opts.startFails)));
+            });
+        }
         return Promise.resolve(orderPromise).then(function (order) {
           s.orderId = order && order.orderId;
           /* A real checkout does not approve itself the instant it opens.
@@ -997,6 +1008,78 @@ checkAsync('L5  ORDERING CHANGED PRESENTATION AND NOTHING ELSE: pressing the ' +
     return p.bodies('createOrder').length === 1 &&
       p.bodies('settle').length === 1 &&
       /payment has been received/i.test(p.status().textContent);
+  });
+
+
+/* ── A checkout that would not open ──────────────────────────────────── */
+section('M  When the SDK will not open (5.3.167)');
+
+checkAsync('M1  THE FIELD DEFECT, REPRODUCED: a session whose start() ' +
+  'rejects used to leave the customer on an idle page with no message at ' +
+  'all -- they pressed the button, saw "Opening checkout", and were told ' +
+  'nothing. Now they are told the checkout could not be opened and that ' +
+  'nothing was charged', async () => {
+    const p = page({ startFails: true });
+    await settle(); await settle(); await settle();
+    await p.press('card');
+    await settle(); await settle();
+    const said = p.status().textContent;
+    return /could not be opened/i.test(said) &&
+      /nothing has been charged/i.test(said);
+  });
+
+checkAsync('M2  IT APPLIES TO EVERY METHOD, not just the card. The empty ' +
+  'catch was shared, so the silence was too', async () => {
+    const p = page({ startFails: true });
+    await settle(); await settle(); await settle();
+    await p.press('paypal');
+    await settle(); await settle();
+    return /could not be opened/i.test(p.status().textContent);
+  });
+
+checkAsync('M3  THE PAGE IS USABLE AGAIN AFTERWARDS. A checkout that never ' +
+  'opened must not leave every button disabled', async () => {
+    const p = page({ startFails: true });
+    await settle(); await settle(); await settle();
+    await p.press('card');
+    await settle(); await settle();
+    return p.buttons['card'].disabled === false &&
+      p.buttons['paypal'].disabled === false;
+  });
+
+checkAsync('M4  NOTHING TECHNICAL REACHES THE CUSTOMER: no SDK message, no ' +
+  'order id, no token, no stack', async () => {
+    const p = page({ startFails: 'ZOID_DESTROYED order 5O190127TN364715T' });
+    await settle(); await settle(); await settle();
+    await p.press('card');
+    await settle(); await settle();
+    const said = p.status().textContent;
+    return !/ZOID|5O190127|token|Error|undefined/i.test(said);
+  });
+
+checkAsync('M5  A SERVER REFUSAL IS NOT REPORTED TWICE. createOrder has ' +
+  'already said something specific and truer; the general sentence must ' +
+  'not paint over it', async () => {
+    const p = page({ createOrder: { ok: false, reason: 'amountchanged' } });
+    await settle(); await settle(); await settle();
+    await p.press('card');
+    await settle(); await settle();
+    const said = p.status().textContent;
+    return /balance on this invoice changed/i.test(said) &&
+      !/could not be opened/i.test(said);
+  });
+
+checkAsync('M6  THE TRIGGERING BUTTON IS HANDED TO THE SDK as targetElement ' +
+  '-- PayPal uses it to position the guest card overlay, and the card is ' +
+  'the one method that renders into this page rather than a window of ' +
+  'its own', async () => {
+    const p = page({});
+    await settle(); await settle(); await settle();
+    await p.press('card');
+    await settle();
+    const s = p.sessions.filter(function (x) { return x.kind === 'card'; })[0];
+    return !!s && s.presentation.targetElement === p.buttons['card'] &&
+      s.presentation.presentationMode === 'auto';
   });
 
 /* ── Runner ──────────────────────────────────────────────────────────── */
