@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <!-- SANDBOX PREVIEW, NOT THE CUSTOMER PAGE.
+
+       Unlinked from the website, excluded from sitemap.xml, and noindex
+       below. It exists only so Apple Pay can be exercised from the
+       registered origin; the customer page is /pay/ and is untouched.
+
+       The visible page is deliberately identical to the real one so that
+       acceptance testing shows what a customer would actually see. The
+       tab title is the one tell, and Sandbox is the real control. -->
+  <title>Pay Invoice (Sandbox preview) | Cornerpost Plumbing</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="payment-header" aria-label="Cornerpost Plumbing">
+    <div class="payment-header__inner">
+      <img
+        class="payment-header__logo"
+        src="../images/branding/cornerpost-logo-horizontal-Khaki.png"
+        alt="Cornerpost Plumbing"
+      >
+    </div>
+  </header>
+
+  <main class="payment-main">
+    <section class="payment-shell" aria-labelledby="payment-title">
+      <div class="payment-intro">
+        <h1 id="payment-title">Pay Invoice <span id="invoice-title-number"></span></h1>
+        <p>Please confirm the details below before paying.</p>
+      </div>
+
+      <div id="payment-status" class="payment-status" role="status" aria-live="polite">
+        Loading invoice details…
+      </div>
+
+      <div id="payment-content" hidden>
+      <section class="invoice-card" aria-label="Invoice details">
+        <div class="eyebrow">Invoice</div>
+        <dl class="invoice-details">
+          <div class="invoice-details__row">
+            <dt>Invoice Number</dt>
+            <dd id="invoice-number" aria-live="polite">—</dd>
+          </div>
+          <div class="invoice-details__row">
+            <dt>Invoice Date</dt>
+            <dd id="invoice-date">—</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="balance-panel" aria-label="Balance due">
+        <span>Balance Due</span>
+        <strong id="balance-due">—</strong>
+      </section>
+
+      <section class="payment-options" aria-labelledby="payment-options-title">
+        <p id="payment-options-title" class="payment-options__help">
+          Choose how you would like to pay. You will be asked to confirm before anything is charged.
+        </p>
+
+        <!-- 5.3.166: THE ORDER THE CUSTOMER SEES IS THIS MARKUP'S ORDER.
+             offer() reveals a button where it already sits, so the sequence
+             below -- PayPal, Google Pay, Apple Pay, Venmo -- is the display order, and the JavaScript's call order
+             has nothing to do with it. A method that is not eligible stays
+             hidden and the rest close up; there is never a placeholder or a
+             disabled action on the page. -->
+        <div class="payment-actions">
+          <button class="payment-button" type="button" data-payment-method="paypal">PayPal</button>
+          <button class="payment-button" type="button" data-payment-method="google-pay">Google Pay</button>
+          <!-- Apple Pay holds its place in the sequence but is never
+               revealed yet: it needs a domain-association file this site
+               does not serve. When that is done it appears here, third,
+               without anything else moving. -->
+          <button class="payment-button" type="button" data-payment-method="apple-pay" hidden>Apple Pay</button>
+          <button class="payment-button" type="button" data-payment-method="venmo">Venmo</button>
+        </div>
+
+        <aside class="questions-panel">
+          Questions about this invoice? Please contact us before paying and we will be glad to go through it with you.
+        </aside>
+      </section>
+
+      </div>
+
+      <footer class="payment-footer">
+        <span id="business-name">Cornerpost Plumbing</span>
+        <span class="payment-footer__separator" aria-hidden="true">·</span>
+        <a id="business-phone" href="tel:+13082253392">308-225-3392</a>
+        <span class="payment-footer__separator" aria-hidden="true">·</span>
+        <a id="business-email" href="mailto:service@cornerpostplumbing.com">service@cornerpostplumbing.com</a>
+      </footer>
+    </section>
+  </main>
+  <script src="payment.js" defer></script>
+</body>
+</html>
