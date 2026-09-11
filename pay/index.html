@@ -54,16 +54,27 @@
           Choose how you would like to pay. You will be asked to confirm before anything is charged.
         </p>
 
+        <!-- 5.3.166: THE ORDER THE CUSTOMER SEES IS THIS MARKUP'S ORDER.
+             offer() reveals a button where it already sits, so the sequence
+             below -- PayPal, Google Pay, Apple Pay, Venmo, Credit or Debit
+             Card -- is the display order, and the JavaScript's call order
+             has nothing to do with it. A method that is not eligible stays
+             hidden and the rest close up; there is never a placeholder or a
+             disabled action on the page. -->
         <div class="payment-actions">
-          <button class="payment-button" type="button" data-payment-method="venmo">Venmo</button>
           <button class="payment-button" type="button" data-payment-method="paypal">PayPal</button>
           <button class="payment-button" type="button" data-payment-method="google-pay">Google Pay</button>
+          <!-- Apple Pay holds its place in the sequence but is never
+               revealed yet: it needs a domain-association file this site
+               does not serve. When that is done it appears here, third,
+               without anything else moving. -->
+          <button class="payment-button" type="button" data-payment-method="apple-pay" hidden>Apple Pay</button>
+          <button class="payment-button" type="button" data-payment-method="venmo">Venmo</button>
           <!-- 5.3.164: the ordinary case for a plumbing invoice -- somebody
                has a bill and a Visa. Card entry is hosted by PayPal, so
                Cornerpost never receives a card number. Hidden like every
                other action until the SDK says this buyer is eligible. -->
           <button class="payment-button" type="button" data-payment-method="card">Credit or Debit Card</button>
-          <button class="payment-button" type="button" data-payment-method="apple-pay" hidden>Apple Pay</button>
         </div>
 
         <aside class="questions-panel">

@@ -38,6 +38,17 @@ const PAGE_HTML = fs.readFileSync(path.join(ROOT, 'pay', 'index.html'), 'utf8');
 
 const TOKEN = 'a1b2c3d4'.repeat(8);
 
+/**
+ * The payment methods pay/index.html ships, IN MARKUP ORDER (5.3.166).
+ *
+ * On this page the markup's order IS the customer-facing order, because
+ * offer() only reveals a button that already sits in the document. Reading
+ * it here rather than retyping it means the fixture cannot drift from the
+ * page, and a newly added button is exercised without anyone remembering.
+ */
+const METHOD_ORDER = (PAGE_HTML.match(/data-payment-method="([^"]+)"/g) || [])
+  .map(function (m) { return /"([^"]+)"/.exec(m)[1]; });
+
 console.log('');
 console.log('  Cornerpost — invoice payment page');
 console.log('  the page offers ways to pay, and decides nothing');
@@ -98,10 +109,14 @@ function page(o) {
   const world = { requests, sessions, scripts, logs: [] };
 
   const buttons = {};
-  /* The same buttons pay/index.html ships. 'card' joined them in 5.3.164;
-     without it here offer() finds no element, returns false, and the
-     guest-card path would look tested while never running once. */
-  ['venmo', 'paypal', 'google-pay', 'card', 'apple-pay'].forEach(function (m) {
+  /* 5.3.166: THE BUTTONS AND THEIR ORDER ARE READ OUT OF pay/index.html
+     ITSELF, not retyped here. Display order on this page IS the markup's
+     order -- offer() reveals a button where it already sits -- so a
+     hand-written list would let the page and the test disagree about the
+     very thing the test exists to pin. It also means a button added to the
+     markup is exercised here without anyone remembering to add it: 'card'
+     was missed exactly that way in 5.3.164. */
+  METHOD_ORDER.forEach(function (m) {
     const b = element('button');
     b.dataset.paymentMethod = m;
     b.hidden = (m === 'apple-pay');
@@ -927,6 +942,61 @@ checkAsync('K9  ONE CHECKOUT AT A TIME still holds with a fourth button. ' +
     return p.sessions.filter(function (s) { return s.kind === 'card'; }).length === 1 &&
       p.sessions.filter(function (s) { return s.kind === 'paypal'; }).length === 0 &&
       p.bodies('createOrder').length === 1;
+  });
+
+
+/* ── The order the customer sees ─────────────────────────────────────── */
+section('L  Display order (5.3.166)');
+
+/** Visible buttons in DOM order -- which is the order a customer reads. */
+function shownInOrder(p) {
+  return METHOD_ORDER.filter(function (m) { return p.buttons[m].hidden === false; });
+}
+
+checkAsync('L1  THE CUSTOMER-FACING ORDER IS PayPal, Google Pay, Apple Pay, ' +
+  'Venmo, Credit or Debit Card. visibleMethods() sorts alphabetically and ' +
+  'therefore cannot see this at all -- the order lives in the markup, so ' +
+  'that is what is read', async () => {
+    const p = page({});
+    await settle(); await settle(); await settle();
+    /* Apple Pay is eligible-but-unserved today, so it is absent and the
+       rest close up. */
+    return shownInOrder(p).join(',') === 'paypal,google-pay,venmo,card';
+  });
+
+check('L2  THE MARKUP ITSELF CARRIES THAT ORDER, including Apple Pay\'s ' +
+  'reserved place -- when its domain file is served it appears third ' +
+  'without anything else moving', () => {
+    return METHOD_ORDER.join(',') ===
+      'paypal,google-pay,apple-pay,venmo,card';
+  });
+
+checkAsync('L3  AN INELIGIBLE METHOD IS OMITTED AND THE REST KEEP THEIR ' +
+  'RELATIVE ORDER -- no gap, no placeholder, no disabled button', async () => {
+    const p = page({ eligible: { googlepay: false } });
+    await settle(); await settle(); await settle();
+    return shownInOrder(p).join(',') === 'paypal,venmo,card' &&
+      p.buttons['google-pay'].hidden === true &&
+      p.buttons['google-pay'].disabled === false;
+  });
+
+checkAsync('L4  WITH GOOGLE PAY AND THE CARD BOTH UNAVAILABLE the remaining ' +
+  'two still read PayPal then Venmo', async () => {
+    const p = page({ eligible: { googlepay: false, card: false } });
+    await settle(); await settle(); await settle();
+    return shownInOrder(p).join(',') === 'paypal,venmo';
+  });
+
+checkAsync('L5  ORDERING CHANGED PRESENTATION AND NOTHING ELSE: pressing the ' +
+  'card still opens one order and settles once through the same path',
+  async () => {
+    const p = page({});
+    await settle(); await settle(); await settle();
+    await p.press('card');
+    await settle();
+    return p.bodies('createOrder').length === 1 &&
+      p.bodies('settle').length === 1 &&
+      /payment has been received/i.test(p.status().textContent);
   });
 
 /* ── Runner ──────────────────────────────────────────────────────────── */
