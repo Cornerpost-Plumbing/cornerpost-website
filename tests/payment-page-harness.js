@@ -108,7 +108,9 @@ function page(o) {
   const requests = [];
   const sessions = [];
   const scripts = [];
-  const world = { requests, sessions, scripts, logs: [] };
+  const world = { requests, sessions, scripts, logs: [], timeouts: [],
+    /* How many authoritative reads should fail before one succeeds. */
+    contextRejectsLeft: (o && o.contextRejects) || 0 };
 
   const buttons = {};
   /* 5.3.166: THE BUTTONS AND THEIR ORDER ARE READ OUT OF pay/index.html
@@ -360,6 +362,9 @@ function page(o) {
       return { transport: 'ok', action: 'createOrder',
         result: opts.createOrder || { ok: true, orderId: 'ORD-1', displayTotal: '174.00' } };
     }
+    /* 5.3.169.1: a settle answer that is not a well-formed transport
+       response is exactly what the lost-answer path reacts to. */
+    if (opts.settleTransport) return opts.settleTransport;
     return { transport: 'ok', action: 'settle',
       result: opts.settle || { recorded: true, settled: true } };
   }
@@ -371,7 +376,13 @@ function page(o) {
       error(m) { world.logs.push(String(m)); }
     },
     String, Number, Object, Array, Boolean, JSON, Math, Date, Error, RegExp,
-    Promise, setTimeout, URLSearchParams,
+    Promise, URLSearchParams,
+    /* Records what the page asked to wait for, then fires at once. The
+       delay stays assertable without the suite actually sleeping. */
+    setTimeout: function (fn, ms) {
+      world.timeouts.push(ms);
+      return setTimeout(fn, 0);
+    },
     document: doc,
     window: {
       location: { search: opts.search === undefined ? '?t=' + TOKEN : opts.search }
@@ -380,6 +391,19 @@ function page(o) {
       const body = JSON.parse(init.body);
       requests.push({ url: url, init: init, body: body });
       if (opts.networkFails) return Promise.reject(new Error('offline'));
+      /* 5.3.169.1: reject only the named actions, so a test can lose the
+         settle answer while leaving the authoritative read reachable --
+         which is the real-world case this exists for. */
+      if (opts.rejectActions &&
+          opts.rejectActions.indexOf(body.action) !== -1) {
+        return Promise.reject(new Error('transport lost'));
+      }
+      /* And a bounded number of failing context reads, to exercise the
+         one retry without pretending the endpoint is permanently down. */
+      if (body.action === 'context' && world.contextRejectsLeft > 0) {
+        world.contextRejectsLeft -= 1;
+        return Promise.reject(new Error('transport lost'));
+      }
       const answer = answerFor(body);
       return Promise.resolve({
         ok: opts.httpFails ? false : true,
@@ -1216,6 +1240,187 @@ checkAsync('N18  PAYPAL, GOOGLE PAY AND VENMO ARE UNAFFECTED by Apple Pay ' +
     return p.bodies('settle').length === 1 &&
       p.buttons['google-pay'].hidden === false &&
       p.buttons['venmo'].hidden === false;
+  });
+
+
+/* ── When the answer is lost ─────────────────────────────────────────── */
+section('O  The lost settle answer (5.3.169.1)');
+
+/** Pays, having arranged for the settle answer to go missing. */
+async function lostAnswer(opts) {
+  const p = page(Object.assign({ rejectActions: ['settle'] }, opts || {}));
+  await settle(); await settle(); await settle();
+  await p.press('paypal');
+  for (let i = 0; i < 8; i += 1) await settle();
+  return p;
+}
+
+/** The invoice as Cornerpost reports it once the payment is recorded. */
+const SETTLED_CONTEXT = {
+  found: true, state: 'settled', invoiceNumber: '1035',
+  invoiceDate: 'August 29, 2026', billedTo: '', balanceDue: '$0.00',
+  paidOn: 'September 10, 2026',
+  business: { name: 'Cornerpost Plumbing', phone: '308-225-3392',
+    email: 'service@cornerpostplumbing.com', website: 'cornerpostplumbing.com' },
+  logoDataUri: 'data:image/png;base64,AAAA'
+};
+
+checkAsync('O1  THE ANSWER IS LOST AND CORNERPOST SAYS PAID -> the customer ' +
+  'is thanked, not alarmed. This is the real Live event: money moved, the ' +
+  'response did not come back, and the page told a paying customer to ring ' +
+  'the office', async () => {
+    const p = page({ rejectActions: ['settle'] });
+    await settle(); await settle(); await settle();
+    p.contextOverride = SETTLED_CONTEXT;
+    await p.press('paypal');
+    for (let i = 0; i < 8; i += 1) await settle();
+    const said = p.status().textContent;
+    return /was paid on September 10, 2026/i.test(said) &&
+      !/could not confirm/i.test(said);
+  });
+
+checkAsync('O2  ...AND THE PAGE IS CLOSED FOR BUSINESS. Hiding the buttons ' +
+  'is not enough on its own -- a page that has just confirmed a payment ' +
+  'must refuse to start another one even if something presses anyway', async () => {
+    const p = page({ rejectActions: ['settle'] });
+    await settle(); await settle(); await settle();
+    p.contextOverride = SETTLED_CONTEXT;
+    await p.press('paypal');
+    for (let i = 0; i < 8; i += 1) await settle();
+    const orders = p.bodies('createOrder').length;
+    /* Press again. The buttons are hidden, but hidden is presentation;
+       the refusal has to be real. */
+    await p.press('paypal');
+    for (let i = 0; i < 6; i += 1) await settle();
+    return p.options.hidden === true &&
+      p.bodies('createOrder').length === orders;
+  });
+
+checkAsync('O3  STILL PAYABLE IS NOT SETTLED. Cornerpost answering "payable" ' +
+  'means it has NOT recorded the payment, so the conservative sentence ' +
+  'stands and reconciliation is left to do its job', async () => {
+    const p = await lostAnswer();
+    const said = p.status().textContent;
+    return /could not confirm the result of this payment/i.test(said) &&
+      /do not submit another payment/i.test(said) &&
+      p.options.hidden === true;
+  });
+
+checkAsync('O4  A READ THAT NEVER SUCCEEDS KEEPS THE CONSERVATIVE SENTENCE. ' +
+  'Silence is not consent: failing to contradict a payment is not the same ' +
+  'as confirming one', async () => {
+    const p = page({ rejectActions: ['settle'] });
+    await settle(); await settle(); await settle();
+    p.contextRejectsLeft = 9;   /* every confirming read fails */
+    await p.press('paypal');
+    for (let i = 0; i < 10; i += 1) await settle();
+    return /could not confirm the result of this payment/i.test(p.status().textContent) &&
+      p.options.hidden === true;
+  });
+
+checkAsync('O5  ONE RETRY IS ENOUGH TO RESCUE A COLD ENDPOINT. The first ' +
+  'read dies the way the settle answer did; the second finds the payment ' +
+  'Cornerpost had already recorded', async () => {
+    const p = page({ rejectActions: ['settle'] });
+    await settle(); await settle(); await settle();
+    p.contextRejectsLeft = 1;   /* only the CONFIRMING read fails */
+    p.contextOverride = SETTLED_CONTEXT;
+    await p.press('paypal');
+    for (let i = 0; i < 10; i += 1) await settle();
+    return /was paid on/i.test(p.status().textContent);
+  });
+
+checkAsync('O6  AND IT WAITS BEFORE ASKING AGAIN, because an instant retry ' +
+  'meets the same half-second the first one died in', async () => {
+    const p = page({ rejectActions: ['settle'] });
+    await settle(); await settle(); await settle();
+    p.contextRejectsLeft = 1;   /* only the CONFIRMING read fails */
+    p.contextOverride = SETTLED_CONTEXT;
+    await p.press('paypal');
+    for (let i = 0; i < 10; i += 1) await settle();
+    return p.timeouts.indexOf(1500) !== -1;
+  });
+
+checkAsync('O7  IT STOPS AT TWO. Confirmation, not polling -- a page that ' +
+  'kept asking would hide an endpoint that is unwell', async () => {
+    const p = page({ rejectActions: ['settle'] });
+    await settle(); await settle(); await settle();
+    const before = p.bodies('context').length;
+    p.contextRejectsLeft = 9;
+    await p.press('paypal');
+    for (let i = 0; i < 12; i += 1) await settle();
+    /* Two attempts to confirm, then it stops -- however many more it
+       would have been allowed to fail. */
+    return p.bodies('context').length - before === 2;
+  });
+
+checkAsync('O8  A CLEAR ANSWER IS NOT ASKED TWICE. When the read succeeds ' +
+  'and says "payable", that is an answer; asking again would be asking a ' +
+  'question already answered', async () => {
+    const p = await lostAnswer();
+    /* One at page load, one to confirm -- and no third. */
+    return p.bodies('context').length === 2;
+  });
+
+checkAsync('O9  THE LOST-ANSWER PATH NEVER SETTLES AGAIN. One settle ' +
+  'attempt, whatever happened to its answer', async () => {
+    const p = await lostAnswer();
+    return p.bodies('settle').length === 1;
+  });
+
+checkAsync('O10  ...AND NEVER CREATES ANOTHER ORDER. A second order is how a ' +
+  'customer pays twice', async () => {
+    const p = await lostAnswer();
+    return p.bodies('createOrder').length === 1;
+  });
+
+checkAsync('O11  THE ONLY THING IT SENDS IS A READ. action=context and a ' +
+  'token, carrying no amount, no invoice and no order -- it cannot write ' +
+  'anything even if the server were willing', async () => {
+    const p = await lostAnswer();
+    const reads = p.bodies('context');
+    const last = reads[reads.length - 1];
+    return Object.keys(last).sort().join(',') === 'action,token' &&
+      last.action === 'context';
+  });
+
+checkAsync('O12  THE BROWSER IS STILL NOT THE AUTHORITY. PayPal\'s callback ' +
+  'reached the page and the page still says nothing happened, because ' +
+  'CORNERPOST did not say it did', async () => {
+    const p = await lostAnswer();
+    return /could not confirm/i.test(p.status().textContent);
+  });
+
+checkAsync('O13  A MALFORMED ANSWER IS A LOST ANSWER TOO -- the other way in, ' +
+  'and it must reconcile the same way', async () => {
+    const p = page({ settleTransport: { transport: 'error' } });
+    await settle(); await settle(); await settle();
+    p.contextOverride = SETTLED_CONTEXT;
+    await p.press('paypal');
+    for (let i = 0; i < 8; i += 1) await settle();
+    return /was paid on/i.test(p.status().textContent);
+  });
+
+checkAsync('O14  AN ORDINARY DECLINE IS UNTOUCHED. The server answered, and ' +
+  'what it said is not a lost answer -- no reread, no reconciliation, the ' +
+  'existing words', async () => {
+    const p = page({ settle: { recorded: false, reason: 'amountchanged' } });
+    await settle(); await settle(); await settle();
+    const before = p.bodies('context').length;
+    await p.press('paypal');
+    for (let i = 0; i < 6; i += 1) await settle();
+    return /balance on this invoice changed/i.test(p.status().textContent) &&
+      p.bodies('context').length === before;
+  });
+
+checkAsync('O15  A NORMAL SETTLEMENT STILL TAKES THE ORIGINAL PATH and is ' +
+  'thanked as it always was', async () => {
+    const p = page({});
+    await settle(); await settle(); await settle();
+    await p.press('paypal');
+    for (let i = 0; i < 6; i += 1) await settle();
+    return /payment has been received/i.test(p.status().textContent) &&
+      p.bodies('settle').length === 1;
   });
 
 /* ── Runner ──────────────────────────────────────────────────────────── */

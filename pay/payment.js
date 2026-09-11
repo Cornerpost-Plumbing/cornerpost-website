@@ -51,6 +51,16 @@
   /* The ApplePayJS version this integration is written against. */
   const APPLE_PAY_VERSION = 4;
 
+  /* How many READ-ONLY attempts are made to confirm a settlement whose
+     answer was lost, and how long to wait before the second. Two, not
+     more: this is confirmation, not polling. */
+  const LOST_ANSWER_READS = 2;
+  const LOST_ANSWER_RETRY_MS = 1500;
+
+  function pause(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
   const els = {
     status: document.getElementById("payment-status"),
     content: document.getElementById("payment-content"),
@@ -528,7 +538,7 @@
       });
 
       if (!answer || answer.transport !== "ok") {
-        refuse("uncertain", "CLIENT_NO_ANSWER");
+        await confirmLostAnswer();
         return;
       }
 
@@ -541,8 +551,66 @@
 
       await recorded(result);
     } catch (error) {
-      refuse("uncertain", "CLIENT_NO_ANSWER");
+      await confirmLostAnswer();
     }
+  }
+
+  /**
+   * THE ANSWER WAS LOST. ASK CORNERPOST WHAT IS TRUE. (5.3.169.1)
+   *
+   * A real Live payment was recorded correctly and the customer was
+   * told "we could not confirm the result of this payment", because the
+   * cross-origin response went missing on the way back. The money was
+   * safe; the sentence was not. This reconciles the DISPLAY with state
+   * Cornerpost had already decided, and does nothing else.
+   *
+   * IT IS A READ. It never settles, never captures, never creates an
+   * order and never writes anything. It cannot make a payment happen,
+   * and it cannot make one disappear.
+   *
+   * THE BROWSER IS STILL NOT THE AUTHORITY. Success is shown only when
+   * CORNERPOST says the invoice is settled. Not when PayPal's callback
+   * says so, not when the page already had a balance on screen, and not
+   * when the read merely fails to contradict it. Anything other than a
+   * plain "settled" keeps the conservative sentence.
+   *
+   * ONE RETRY, AND ONLY BECAUSE THE FAILURE IS KNOWN. The same
+   * transport that just lost the settle answer is the one being asked
+   * again, and that failure has been seen twice on plain context reads
+   * against a cold Apps Script endpoint. An immediate second attempt
+   * would usually meet the same half-second the first one died in, so
+   * it waits briefly first. Two attempts, then it stops -- resilience,
+   * not polling, and never a way to hide an endpoint that is unwell.
+   */
+  async function confirmLostAnswer() {
+    for (let attempt = 0; attempt < LOST_ANSWER_READS; attempt += 1) {
+      if (attempt > 0) await pause(LOST_ANSWER_RETRY_MS);
+      try {
+        const fresh = await postPaymentAction({
+          action: "context",
+          token: getPaymentToken()
+        });
+        const context = fresh && fresh.transport === "ok"
+          ? fresh.result : null;
+        if (context && context.found === true &&
+            context.state === "settled") {
+          /* Cornerpost says it is paid. The existing settled view is
+             the same one a customer would see arriving fresh at a paid
+             invoice, and it marks the page settled so nothing here can
+             be attempted again. */
+          renderSettled(context);
+          return;
+        }
+        /* Read succeeded and did NOT say settled. That is an answer,
+           not a transport problem, so asking again would only be
+           asking a question already answered. */
+        break;
+      } catch (error) {
+        /* The read itself failed. Try once more, then give up. */
+      }
+    }
+
+    refuse("uncertain", "CLIENT_NO_ANSWER");
   }
 
   /**
