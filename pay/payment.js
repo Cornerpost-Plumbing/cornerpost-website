@@ -32,8 +32,25 @@
    * altered because the host changed.
    */
 
+  /* THE LIVE PAYMENT APPLICATION. REAL MONEY.
+
+     One fixed deployment id, and it stays fixed. Versions are published
+     behind this URL by updating that deployment in place, so shipping a
+     new payment release -- or rolling one back -- never requires
+     republishing this site. The customer link in a year-old invoice PDF
+     keeps working because neither this address nor the /pay/?t= URL in
+     front of it ever moves.
+
+     NOTHING HERE DECIDES WHETHER A CHECKOUT MAY HAPPEN. The server owns
+     that: whether PayPal is configured, whether the invoice is payable,
+     and the checkout kill switch. This page only asks and reports.
+
+     The environment is not named in this file either. Which PayPal the
+     server talks to, which SDK origin the browser loads and which
+     client id it uses all arrive from the server on this address, so a
+     page cannot end up half in one environment and half in another. */
   const PAYMENT_API_URL =
-    "https://script.google.com/macros/s/AKfycbz5_XXSjOHZLWTy9KbqhgHCRwnGfCa9rFMHsgp992VEZvAQmCczBCTMl7vUiGRSUP7Bvg/exec";
+    "https://script.google.com/macros/s/AKfycbwAU3EuC4kt8Sq9vTeycXD8GG-VygpnJW7HI9Za_e5wZgaoK1Eacek6LcFcEWTgfbaQ/exec";
 
   const GOOGLE_PAY_SDK_URL = "https://pay.google.com/gp/p/js/pay.js";
 
