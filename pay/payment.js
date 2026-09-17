@@ -204,6 +204,23 @@
      * person told "try again" starts a NEW checkout, and that would
      * genuinely pay twice.
      */
+    /**
+     * 5.3.179: THE DECLINE, WHICH IS NOT AN UNCERTAINTY.
+     *
+     * PayPal refused the buyer's funding source at capture. Nothing was
+     * charged, the invoice is untouched, and the documented recovery is
+     * to try a different method -- so this says so plainly, and refuse()
+     * leaves the buttons on screen to try it with. Invoice 1053 met the
+     * 'uncertain' sentence below instead and was told not to pay again.
+     *
+     * NO PROVIDER CODE REACHES THE CUSTOMER. INSTRUMENT_DECLINED is an
+     * operator's word; it stays in the execution log.
+     */
+    declined: [
+      "Payment method declined",
+      "That payment method was declined and nothing has been charged. " +
+        "Please try again with a different payment method."
+    ],
     uncertain: [
       "Please contact us",
       "We could not confirm the result of this payment. Please do not submit another payment. Contact Cornerpost Plumbing and we will confirm exactly what was received."
@@ -223,8 +240,11 @@
     if (diagnostic) {
       console.warn("[Cornerpost payment] " + reason + " (" + diagnostic + ")");
     }
+    /* 5.3.179: 'declined' joins the reasons that KEEP the checkout on
+       screen. Hiding it would be telling somebody to try another method
+       while removing every button they could try it with. */
     if (reason !== "amountchanged" && reason !== "unverified" &&
-        reason !== "failed") {
+        reason !== "failed" && reason !== "declined") {
       hideCheckout();
     }
     showStatus(said[0] + ". " + said[1],
@@ -771,6 +791,29 @@
       const session = await sdk.createApplePayOneTimePaymentSession(
         sessionOptions());
       const config = await session.config();
+
+      /**
+       * 5.3.179: PAYPAL'S OWN ELIGIBILITY ANSWER, WHICH WAS BEING
+       * IGNORED.
+       *
+       * config() was fetched for merchantCapabilities and
+       * supportedNetworks and its isEligible was never read -- so a
+       * merchant PayPal considers ineligible still got a button. PayPal
+       * documents this exact check as the gate for showing one.
+       *
+       * WHY NOT canMakePaymentsWithActiveCard. That is Apple's check for
+       * whether a usable card is actually provisioned, and it would be
+       * the better question -- but it takes an Apple MERCHANT IDENTIFIER,
+       * and in a PayPal-managed integration the registered identifier is
+       * PayPal's, not Cornerpost's. config() does not return one
+       * (countryCode, merchantCapabilities, supportedNetworks,
+       * isEligible) and PayPal documents no way to obtain it. Inventing
+       * one would fail for every buyer. So the gap is closed where it can
+       * be, and the sheet closing for want of a card is made diagnosable
+       * instead -- see appleFailed below.
+       */
+      if (config && config.isEligible === false) return false;
+
       return offer("apple-pay", () => openApplePay(session, config));
     } catch (error) {
       /* Apple Pay could not be prepared -- most often a merchant or
@@ -827,12 +870,27 @@
       return;
     }
 
+    /**
+     * 5.3.179: A FAILURE WE CAUSED IS NOT A CUSTOMER CANCELLATION.
+     *
+     * abort() makes Apple fire oncancel, and oncancel then overwrote the
+     * real message with "the checkout was closed and nothing has been
+     * charged" -- so a merchant-validation failure reached the customer
+     * looking exactly like they had changed their mind, and reached us
+     * as nothing at all. That is why the Invoice 1053 Apple Pay attempt
+     * could only be described as "it opened and then closed".
+     */
+    let appleFailed = false;
+
     apple.onvalidatemerchant = (event) => {
       session.validateMerchant({ validationUrl: event.validationURL })
         .then((payload) => {
           apple.completeMerchantValidation(payload.merchantSession);
         })
         .catch((error) => {
+          appleFailed = true;
+          console.warn("[Cornerpost payment] Apple Pay merchant " +
+            "validation failed: " + ((error && error.message) || error));
           launchFailed(error);
           try { apple.abort(); } catch (ignored) { /* already closed */ }
           setBusy(false);
@@ -872,6 +930,8 @@
 
     apple.oncancel = () => {
       setBusy(false);
+      /* Ours, not theirs: the message already on screen is the true one. */
+      if (appleFailed) return;
       if (!settled) {
         showStatus(
           "The checkout was closed and nothing has been charged. You can start again whenever you are ready.",
