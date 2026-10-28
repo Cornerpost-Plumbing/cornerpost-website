@@ -644,7 +644,7 @@ function renderHomeReviews(reviews) {
     }
 
     container.classList.remove("is-empty");
-    container.innerHTML = reviews.slice(0, 4).map((review) => buildReviewCard(review)).join("");
+    container.innerHTML = reviews.map((review) => buildReviewCard(review)).join("");
   });
 }
 
@@ -682,6 +682,8 @@ function buildReviewCard(review, fullWidth = false) {
   const dateText = formatReviewDate(review.date);
   const source = review.source || getConfig()?.reviews?.sourceName || "Google";
   const cardClass = fullWidth ? "review-card review-card-full" : "review-card";
+  // The feed does not provide a public per-review URL. Link to Google's public listing.
+  const googleReviewsUrl = "https://maps.google.com/maps?cid=10642334411371897658";
 
   return `
     <article class="${cardClass}">
@@ -693,6 +695,7 @@ function buildReviewCard(review, fullWidth = false) {
       <footer>
         <strong>${escapeHtml(review.author || "Customer")}</strong>
         <span>${escapeHtml(source)}</span>
+        <a class="review-google-link" href="${googleReviewsUrl}" target="_blank" rel="noopener noreferrer" aria-label="Read ${escapeAttribute(review.author || 'customer')} review on Google">Read on Google <span aria-hidden="true">↗</span></a>
       </footer>
     </article>
   `;
@@ -744,19 +747,16 @@ function initReviewsCarousel() {
       if (!firstCard) return viewport.clientWidth;
       const styles = window.getComputedStyle(track);
       const gap = parseFloat(styles.columnGap || styles.gap || 0);
-      const cardsPerAdvance = isTablet() ? 2 : 1;
-      return (firstCard.getBoundingClientRect().width + gap) * cardsPerAdvance;
+      return firstCard.getBoundingClientRect().width + gap;
     };
 
     const updateControls = () => {
-      const shouldShowControls = !isDesktop() && cards.length > getVisibleCount();
+      const shouldShowControls = cards.length > getVisibleCount();
       if (previous) previous.hidden = !shouldShowControls;
       if (next) next.hidden = !shouldShowControls;
     };
 
     const scrollReviews = (direction) => {
-      if (isDesktop()) return;
-
       viewport.scrollBy({
         left: direction * getStep(),
         behavior: "smooth"
@@ -772,7 +772,7 @@ function initReviewsCarousel() {
 
     const startAutoAdvance = () => {
       stopAutoAdvance();
-      if (isDesktop() || isPaused || cards.length <= getVisibleCount()) return;
+      if (isPaused || cards.length <= getVisibleCount() || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
       autoAdvance = window.setInterval(() => {
         const nearEnd = viewport.scrollLeft + viewport.clientWidth >= viewport.scrollWidth - 8;

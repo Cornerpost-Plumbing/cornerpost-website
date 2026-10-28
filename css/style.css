@@ -2476,3 +2476,30 @@ button:disabled {
   color: var(--color-muted);
   font-size: 0.86rem;
 }
+
+/* Cornerpost review cards — consistent height and accessible Google source. */
+.reviews-carousel-viewport { overflow-x: auto; }
+@media (min-width: 961px) {
+  .reviews-carousel { grid-template-columns: 42px minmax(0, 1fr) 42px; }
+  .reviews-carousel-button { display: inline-flex; }
+  .reviews-carousel-viewport { overflow-x: auto; }
+  .reviews-carousel-track .review-card:nth-child(n + 4) { display: flex; }
+}
+.review-card { height: 320px; min-height: 0; overflow: hidden; }
+.review-card blockquote {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  overflow: hidden;
+  margin-bottom: 1rem;
+  overflow-wrap: anywhere;
+}
+.review-card footer { flex-shrink: 0; }
+.review-google-link { display: inline-flex; align-items: center; gap: .25rem; width: fit-content; margin-top: .4rem; color: var(--color-post); font-size: .85rem; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.review-google-link:hover, .review-google-link:focus-visible { color: var(--color-brass); }
+.reviews-page-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.review-card-full { width: auto; }
+@media (max-width: 960px) { .reviews-page-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .reviews-page-list { grid-template-columns: 1fr; } .reviews-carousel { grid-template-columns: 36px minmax(0, 1fr) 36px; gap: .4rem; } .reviews-carousel-button { display: inline-flex; width: 36px; height: 36px; } }
+@media (prefers-reduced-motion: reduce) { .reviews-carousel-viewport { scroll-behavior: auto; } }

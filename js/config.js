@@ -65,10 +65,10 @@ window.Cornerpost = {
   reviews: {
     profileUrl: "",
     leaveReviewUrl: "https://g.page/r/CTrjvPrCKrGTEBM/review",
-    feedUrl: "PASTE_GOOGLE_REVIEW_FEED_WEB_APP_URL_HERE",
+    feedUrl: "https://script.google.com/macros/s/AKfycbxXITohmY9blq6430bgE6Szxb1H4A6PX6LPKkzdsJnquVY6KERF41Djnnt7CA2lhNjSeQ/exec",
     sourceName: "Google",
     homeHeading: "Recent Customer Reviews",
-    homeIntro: "The newest customer feedback will appear here as Cornerpost begins serving the community.",
+    homeIntro: "Customer feedback offers an honest look at our work, from the people we've had the opportunity to serve.",
     emptyTitle: "No reviews yet",
     emptyMessage: "Cornerpost Plumbing is just getting started. Once customers begin sharing their experiences, the newest reviews will appear here.",
     pageIntro: "Every review helps us improve, keeps us accountable, and lets our neighbors know what they can expect from Cornerpost Plumbing.",
