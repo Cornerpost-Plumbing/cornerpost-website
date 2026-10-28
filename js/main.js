@@ -663,8 +663,9 @@ function renderReviewsPage(reviews) {
 }
 
 function buildReviewsEmptyState(reviewsConfig, context) {
-  const title = reviewsConfig.emptyTitle || "No reviews yet";
-  const message = reviewsConfig.emptyMessage || "Customer reviews will appear here as they are received.";
+  const title = "Reviews temporarily unavailable";
+  const message = "We can't display Google reviews right now. You can read customer feedback directly on Google.";
+  const googleReviewsUrl = "https://maps.google.com/maps?cid=10642334411371897658";
   const className = context === "home" ? "reviews-empty-state reviews-empty-state-home" : "reviews-empty-state";
 
   return `
@@ -672,6 +673,7 @@ function buildReviewsEmptyState(reviewsConfig, context) {
       <div class="reviews-empty-mark" aria-hidden="true">★</div>
       <h3>${escapeHtml(title)}</h3>
       <p>${escapeHtml(message)}</p>
+      <p><a href="${googleReviewsUrl}" target="_blank" rel="noopener noreferrer">View reviews on Google ↗</a></p>
     </article>
   `;
 }
