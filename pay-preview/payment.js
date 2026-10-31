@@ -224,6 +224,7 @@
    * plumbing bill should never be shown one.
    */
   function refuse(reason, diagnostic) {
+    diag("refused", reason + (diagnostic ? " ref=" + diagnostic : ""));
     const said = REASONS[reason] || REASONS.uncertain;
     if (diagnostic) {
       console.warn("[Cornerpost payment] " + reason + " (" + diagnostic + ")");
@@ -423,6 +424,7 @@
   }
 
   async function renderMethods(sdk, methods, googlePayEnvironment) {
+    diag("eligible", ["paypal","venmo","googlepay","applepay"].filter((m) => eligible(methods, m)).join(",") || "(none)");
     let offered = 0;
 
     if (eligible(methods, "googlepay")) {
@@ -485,6 +487,7 @@
       onCancel: () => {
         /* The buyer came back deliberately; no return to resume. */
         forgetMethod();
+        diag("cancelled", "buyer closed the wallet");
         /* The buyer backed out. Nothing moved, and saying so is the
            difference between a calm page and an alarming one. It is not
            an error and needs no office intervention. */
@@ -554,6 +557,7 @@
    * as a decline, and never invites another attempt.
    */
   async function settle(orderId) {
+    diag("settle-request", "order=" + diagTail(orderId));
     try {
       const answer = await postPaymentAction({
         action: "settle",
@@ -573,6 +577,7 @@
         return;
       }
 
+      diag("settle-result", "RECORDED");
       await recorded(result);
     } catch (error) {
       await confirmLostAnswer();
@@ -692,6 +697,7 @@
     setBusy(true);
     /* Remembered before the browser can be taken away from us. */
     rememberMethod(method);
+    diag("click", method + " remembered=" + rememberedMethod());
     showStatus("Opening checkout. One moment.", "info");
 
     const session = makeSession();
@@ -1012,6 +1018,61 @@
    * is unavailable or empty the code falls back to the behaviour that
    * already shipped, so PayPal is never made worse by this.
    */
+  /* -----------------------------------------------------------------
+     PREVIEW-ONLY STAGE DIARY. NOT PART OF THE PRODUCTION CORRECTION.
+
+     The Android Venmo test has to prove a sequence that spans an app
+     switch and a page reload, so the evidence has to survive both.
+     Each stage is appended to sessionStorage and painted on the page,
+     so the phone itself shows what happened -- no cable, no console,
+     no Cloud Logging.
+
+     IT CARRIES NO CREDENTIAL. The invoice token is never recorded and
+     an order id is reduced to its last six characters.
+     ----------------------------------------------------------------- */
+  const DIAG_KEY = "cpPreviewDiary";
+
+  function diagTail(value) {
+    const text = String(value == null ? "" : value);
+    return text.length > 6 ? "..." + text.slice(-6) : text;
+  }
+
+  function diag(stage, detail) {
+    try {
+      const all = JSON.parse(sessionStorage.getItem(DIAG_KEY) || "[]");
+      all.push({
+        t: new Date().toISOString().slice(11, 23),
+        s: stage,
+        d: detail === undefined ? "" : String(detail)
+      });
+      sessionStorage.setItem(DIAG_KEY, JSON.stringify(all.slice(-60)));
+    } catch (error) {}
+    paintDiary();
+  }
+
+  function paintDiary() {
+    let rows = [];
+    try { rows = JSON.parse(sessionStorage.getItem(DIAG_KEY) || "[]"); }
+    catch (error) { rows = []; }
+
+    let box = document.getElementById("cp-preview-diary");
+    if (!box) {
+      box = document.createElement("pre");
+      box.id = "cp-preview-diary";
+      box.style.cssText =
+        "margin:24px 12px;padding:12px;border:1px solid #c33;border-radius:6px;" +
+        "background:#fffafa;color:#222;font:12px/1.45 ui-monospace,monospace;" +
+        "white-space:pre-wrap;word-break:break-word";
+      document.body.appendChild(box);
+    }
+    const lines = rows.map(function (r) {
+      return r.t + "  " + r.s + (r.d ? "  " + r.d : "");
+    });
+    lines.unshift("PREVIEW DIAGNOSTIC - checkout stages");
+    if (rows.length === 0) lines.push("(nothing yet)");
+    box.textContent = lines.join(String.fromCharCode(10));
+  }
+
   const RESUME_METHOD_KEY = "cpResumeMethod";
 
   function rememberMethod(method) {
@@ -1085,24 +1146,35 @@
      * never leaves the browser, so it has nothing to return from.
      */
     const remembered = rememberedMethod();
+    diag("return-detected", "remembered=" + (remembered || "(none - storage lost)"));
     const makers = [];
+    const makerKinds = [];  /* preview diagnostics only */
 
     if (remembered === "venmo") {
       makers.push(() => sdk.createVenmoOneTimePaymentSession(sessionOptions()));
+      makerKinds.push("venmo");
     } else if (remembered === "paypal") {
       makers.push(() => sdk.createPayPalOneTimePaymentSession(sessionOptions()));
+      makerKinds.push("paypal");
     } else {
       makers.push(() => sdk.createPayPalOneTimePaymentSession(sessionOptions()));
+      makerKinds.push("paypal");
       makers.push(() => sdk.createVenmoOneTimePaymentSession(sessionOptions()));
+      makerKinds.push("venmo");
     }
 
-    for (const makeSession of makers) {
+    for (let i = 0; i < makers.length; i += 1) {
+      const makeSession = makers[i];
+      diag("resume-try", makerKinds[i]);
       try {
         const session = makeSession();
-        if (session && session.hasReturned && session.hasReturned()) {
+        const returned = !!(session && session.hasReturned && session.hasReturned());
+        diag("hasReturned", makerKinds[i] + "=" + returned);
+        if (returned) {
           showStatus("Confirming your payment. Please wait.", "info");
           /* Consumed: a return is answered once and only once. */
           forgetMethod();
+          diag("resume", makerKinds[i]);
           session.resume();
           return;
         }
