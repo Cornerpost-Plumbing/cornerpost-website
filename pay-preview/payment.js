@@ -483,6 +483,8 @@
         return settle(data && data.orderId);
       },
       onCancel: () => {
+        /* The buyer came back deliberately; no return to resume. */
+        forgetMethod();
         /* The buyer backed out. Nothing moved, and saying so is the
            difference between a calm page and an alarming one. It is not
            an error and needs no office intervention. */
@@ -651,6 +653,8 @@
     settled = true;
     setBusy(false);
     hideCheckout();
+    /* Terminal: there is nothing left to return from. */
+    forgetMethod();
 
     try {
       const fresh = await postPaymentAction({
@@ -686,6 +690,8 @@
   function openSession(method, makeSession) {
     if (busy || settled) return;
     setBusy(true);
+    /* Remembered before the browser can be taken away from us. */
+    rememberMethod(method);
     showStatus("Opening checkout. One moment.", "info");
 
     const session = makeSession();
@@ -988,6 +994,31 @@
   }
 
   /**
+   * WHICH WALLET THE BUYER LEFT FOR (30 Oct 2026).
+   *
+   * Venmo ALWAYS leaves the browser for the Venmo app and returns by
+   * redirect, which reloads this page and destroys every variable the
+   * session lived in. resumeIfReturning() could only ever ask a PayPal
+   * session whether it had returned, so a Venmo buyer approved in the
+   * app, came back, and nothing settled: the order stayed approved but
+   * uncaptured until it expired and Venmo released the hold.
+   *
+   * ONLY THE METHOD NAME IS KEPT -- never an order id. Resumption is
+   * driven by the SDK own hasReturned()/resume(), so this can only ever
+   * finish a checkout the buyer is RETURNING FROM right now. It cannot
+   * reach back and capture an abandoned or historical order.
+   *
+   * sessionStorage is per-tab and survives a same-tab redirect. When it
+   * is unavailable or empty the code falls back to the behaviour that
+   * already shipped, so PayPal is never made worse by this.
+   */
+  const RESUME_METHOD_KEY = "cpResumeMethod";
+
+  function rememberMethod(method) {
+    try { sessionStorage.setItem(RESUME_METHOD_KEY, method); } catch (error) {}
+  }
+
+  /**
    * A BUYER WHO WAS SENT AWAY AND CAME BACK.
    *
    * The redirect presentation leaves and returns; resume() re-enters the
@@ -1006,6 +1037,15 @@
    * the SDK and inventing a list would be guessing at somebody else's
    * contract. "More than just the token" is the honest test.
    */
+  function forgetMethod() {
+    try { sessionStorage.removeItem(RESUME_METHOD_KEY); } catch (error) {}
+  }
+
+  function rememberedMethod() {
+    try { return sessionStorage.getItem(RESUME_METHOD_KEY) || ""; }
+    catch (error) { return ""; }
+  }
+
   function looksLikeReturn() {
     const params = new URLSearchParams(window.location.search);
     let count = 0;
@@ -1031,14 +1071,44 @@
      * fault, and an abandoned session is wrong on its own terms.
      */
     if (!looksLikeReturn()) return;
-    try {
-      const session = sdk.createPayPalOneTimePaymentSession(sessionOptions());
-      if (session.hasReturned && session.hasReturned()) {
-        showStatus("Confirming your payment. Please wait.", "info");
-        session.resume();
+
+    /**
+     * ASK THE METHOD THE BUYER ACTUALLY LEFT WITH (30 Oct 2026).
+     *
+     * A PayPal session cannot recognise a Venmo return, so asking only
+     * PayPal meant a Venmo buyer never settled. The remembered method
+     * is tried first; with nothing remembered we try PayPal exactly as
+     * before and then Venmo, so the previous behaviour is a subset of
+     * this one.
+     *
+     * Google Pay is deliberately absent: it completes in the page and
+     * never leaves the browser, so it has nothing to return from.
+     */
+    const remembered = rememberedMethod();
+    const makers = [];
+
+    if (remembered === "venmo") {
+      makers.push(() => sdk.createVenmoOneTimePaymentSession(sessionOptions()));
+    } else if (remembered === "paypal") {
+      makers.push(() => sdk.createPayPalOneTimePaymentSession(sessionOptions()));
+    } else {
+      makers.push(() => sdk.createPayPalOneTimePaymentSession(sessionOptions()));
+      makers.push(() => sdk.createVenmoOneTimePaymentSession(sessionOptions()));
+    }
+
+    for (const makeSession of makers) {
+      try {
+        const session = makeSession();
+        if (session && session.hasReturned && session.hasReturned()) {
+          showStatus("Confirming your payment. Please wait.", "info");
+          /* Consumed: a return is answered once and only once. */
+          forgetMethod();
+          session.resume();
+          return;
+        }
+      } catch (error) {
+        /* Nothing to resume here is not a problem worth showing anybody. */
       }
-    } catch (error) {
-      /* Nothing to resume is not a problem worth showing anybody. */
     }
   }
 
